@@ -252,7 +252,7 @@ const DataMap = (() => {
         <div class="dm-htext">
           <div class="dm-erow"><span class="dm-eyebrow">DPDP Act s.8(1) · accountability</span><span id="dmLive">${livePill()}</span></div>
           <h2>Where ${esc(ME?.client?.name || "your")}${ME?.client?.name ? "’s" : ""} personal data lives, who uses it, and why</h2>
-          <p class="muted">Built from the shop's database schema, ${num(d.log_rows)} database log entries from the last ${d.window_days} days, the consent policy, the retention rules and your declarations. Full scan ${esc(ago(d.at))} (${esc(dt(d.at))}).${d.truncated ? " Log rows were capped; the busiest flows are complete." : ""}</p>
+          <p class="muted">Built from the shop’s database schema, its database logs, the consent policy, the retention rules and your declarations.</p>
           <div class="dm-hacts">
             ${can("datamap:Scan") ? `<button class="btn primary${S.scanning ? " loading" : ""}" data-act="scan" ${S.scanning ? "disabled" : ""}>${S.scanning ? "Scanning…" : "Rescan now"}</button>` : ""}
             <button class="btn ghost" data-act="tab" data-tab="ropa">Record of processing</button>

@@ -1855,3 +1855,8 @@ mark.pii.leak{background:var(--err-solid);color:#fff}
 .cp-origin.new{background:var(--primary-soft);color:var(--primary-text)}
 .cp-origin.old{background:var(--surface-3);color:var(--text-2)}
 @media (max-width:1100px){.cp-health.with-gate{grid-template-columns:1fr}}
+
+/* Section headers (same look as the Data map hero) */
+.vh-hero{display:block}
+.vh-hero .dm-htext{flex:none}
+.vh-hero p{margin:0;max-width:760px}

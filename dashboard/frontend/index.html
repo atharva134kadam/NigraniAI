@@ -14,7 +14,7 @@
   try { document.documentElement.dataset.theme = localStorage.getItem("theme") === "dark" ? "dark" : "light"; }
   catch { document.documentElement.dataset.theme = "light"; }
 </script>
-<link rel="stylesheet" href="style.css?v=68">
+<link rel="stylesheet" href="style.css?v=69">
 <script src="config.js?v=17"></script>
 </head>
 <body>
@@ -197,6 +197,7 @@
 
     <!-- LOG TELEMETRY -->
     <section id="view-telemetry" class="view" hidden>
+      <header class="panel dm-hero vh-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Rules 2025 · Rule 6 · security safeguards</span><span class="dm-live vh-live">Live</span></div><h2>Every log line from your services, with personal data masked</h2><p class="muted">Live structured logs from all services, checked for personal data as they arrive. Masked values stay masked; anything that slips through unmasked is flagged.</p></div></header>
       <div class="panel tele">
         <div class="tele-bar">
           <div id="tTabs" class="ttabs" role="tablist" aria-label="Service"></div>
@@ -266,6 +267,7 @@
 
     <!-- CONSENT & PURPOSE -->
     <section id="view-consent" class="view" hidden>
+      <header class="panel dm-hero vh-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Act s.5 notice · s.6 consent</span><span class="dm-live vh-live">Live</span></div><h2>Who agreed to what, and whether every use of personal data is covered</h2><p class="muted">Checks each customer’s sign-up consent and notice version against the purposes your services actually use.</p></div></header>
       <div class="cp-top">
         <div class="cp-head-r">
           <span id="cpMeta" class="tstatus"></span>
@@ -308,6 +310,7 @@
 
     <!-- RETENTION -->
     <section id="view-retention" class="view" hidden>
+      <header class="panel dm-hero vh-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Act s.8(7) · Rule 8 · erasure</span><span class="dm-live vh-live">Live</span></div><h2>How long personal data is kept, and what is due for deletion</h2><p class="muted">Tracks every record against its retention schedule, legal minimums and erasure requests.</p></div></header>
       <div class="cp-top">
         <div class="cp-head-r">
           <span id="rtMeta" class="tstatus"></span>
@@ -332,6 +335,7 @@
 
     <!-- BREACH RESPONSE -->
     <section id="view-breach" class="view" hidden>
+      <header class="panel dm-hero vh-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Act s.8(5)–(6) · Rule 7 · breach intimation</span><span class="dm-live vh-live">Live</span></div><h2>Spot personal data breaches early and report them on time</h2><p class="muted">Detectors and an anomaly model watch the logs; every incident carries its Board and user notification deadlines.</p></div></header>
       <div class="cp-top">
         <div class="cp-head-r">
           <span id="brMeta" class="tstatus"></span>
@@ -408,13 +412,15 @@
 
     <!-- ACCESS MANAGEMENT (IAM) -->
     <section id="view-iam" class="view" hidden>
+      <header class="panel dm-hero vh-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Act s.8(5) · reasonable security safeguards</span></div><h2>Who can see and change what in NigraniAI</h2><p class="muted">Users, groups and policies decide every action in the dashboard. The root user is never restricted.</p></div></header>
       <div id="iamBody"></div>
       <div id="iamToast" class="ttoast" role="status" hidden></div>
     </section>
 
 
     <!-- READINESS -->
-    <section id="view-readiness" class="view" hidden><div id="rdBody"></div></section>
+    <section id="view-readiness" class="view" hidden>
+      <header class="panel dm-hero vh-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Act 2023 · DPDP Rules 2025</span></div><h2>How ready you are for a DPDP audit</h2><p class="muted">One score across consent, retention, breach response, security, public exposure and evidence, with what to fix first.</p></div></header><div id="rdBody"></div></section>
 
     <!-- DATA MAP -->
     <section id="view-datamap" class="view" hidden><div id="dmBody"></div></section>
@@ -448,8 +454,8 @@
 <script src="iam.js?v=5"></script>
 <script src="usage.js?v=6"></script>
 <script src="readiness.js?v=6"></script>
-<script src="datamap.js?v=10"></script>
+<script src="datamap.js?v=11"></script>
 <script src="billing.js?v=3"></script>
-<script src="app.js?v=59"></script>
+<script src="app.js?v=60"></script>
 </body>
 </html>

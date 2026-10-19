@@ -190,7 +190,10 @@ window.addEventListener("popstate", () => {
   if (session && !$("appView").hidden && TITLES[v] && v !== currentView) show(v, { fromHistory: true });
 });
 
-$("live").addEventListener("change", () => { if (currentView === "datamap") DataMap.liveChanged(); });
+// The "Live" badge in each section header follows the Live switch.
+function syncLivePills() { const on = $("live").checked; document.querySelectorAll(".vh-live").forEach((p) => { p.classList.toggle("off", !on); p.textContent = on ? "Live" : "Paused"; }); }
+syncLivePills();
+$("live").addEventListener("change", () => { syncLivePills(); if (currentView === "datamap") DataMap.liveChanged(); });
 let ticks = 0;
 setInterval(() => {
   if (!$("live").checked || document.hidden || $("appView").hidden) return;
