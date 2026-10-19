@@ -1110,3 +1110,38 @@ consent_service/
 Live snapshot (ShopSmart, 17–18 Oct 2026): 28,702 log lines from 9 services; 2 of 8 customers with
 valid consent and 6 open consent issues; 16 detector signals and 8 anomalies over 7 days; nothing past
 a retention deadline, 59 session tokens due soon, 28,742 records under legal hold; readiness 74–75 (B); data map health 53 (13 gaps); public exposure test 100 (all 17 tables blocked for the public key); records & evidence 100.
+
+## Deployment (AWS Lightsail, Mumbai)
+
+The whole system (dashboard, consent service, local AI model and the provider console) runs on **one
+Lightsail server** `nigrani-1` in `ap-south-1`, behind nginx with a free Let's Encrypt certificate.
+
+| | |
+|---|---|
+| Dashboard | https://<server-ip-dashed>.sslip.io |
+| Provider console | https://<server-ip-dashed>.sslip.io/console/ |
+| Server | Ubuntu 24.04, 1 GB RAM + 3 GB swap, static IP <server-ip> (the plan AWS allows a new account; move up via snapshot later) |
+| AI model on the server | `en_core_web_md` (`PII_NER_MODEL` in the server's .env); `en_core_web_lg` locally |
+| Backups | Lightsail automatic snapshot every day at 03:30 IST |
+
+`sslip.io` turns the IP into a name so HTTPS works without buying a domain. With a real domain, point
+it at the IP, change `HOSTNAME_PUBLIC` in `deploy/target.env` and `CONSENT_ALLOWED_ORIGINS` on the
+server, and run `./deploy/deploy.sh setup`.
+
+**Server layout** (`/opt/nigrani`): `releases/<time>/{app,console}` (code, last 5 kept), `current` →
+the live release, and `shared/` holding what deploys never overwrite: `app.env`, `console.env`, `data/`
+(live records and evidence ledger), `provider.json` and `pii-venv/`. Services: `nigrani-consent`
+(:8091), `nigrani-console` (:8094) and nginx; all restart by themselves.
+
+**Making changes:** edit and test locally, commit, then run
+
+```
+./deploy/deploy.sh            # deploy committed code (health check, automatic rollback)
+./deploy/deploy.sh rollback   # back to the previous release
+./deploy/deploy.sh status | logs [consent|console|nginx] | ssh | setup
+```
+
+SSH is open only to your current internet address; the script updates that rule when your address
+changes. Policies, users and other settings changed in the live dashboard are saved on the server
+and need no deploy. The local copy is for development: its provider reporting is switched off
+(`CENTRAL_CLIENT_KEY` commented out in the local .env), so only the server reports as `shopsmart`.
