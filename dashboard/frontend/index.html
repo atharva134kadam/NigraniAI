@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NigraniAI · DPDP Compliance</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/nigrani-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  // Apply saved theme before first paint (default: light).
+  try { document.documentElement.dataset.theme = localStorage.getItem("theme") === "dark" ? "dark" : "light"; }
+  catch { document.documentElement.dataset.theme = "light"; }
+</script>
+<link rel="stylesheet" href="style.css?v=68">
+<script src="config.js?v=17"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.4 7.5 9.5 4.4-1.1 7.5-4.9 7.5-9.5V6L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></g></symbol>
+  <symbol id="i-logs" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01" stroke-width="2.6"/></g></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></g></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></g></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></symbol>
+  <symbol id="i-consent" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l1 2h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3l1-2Z"/><path d="m9 13 2 2 4-4"/></g></symbol>
+  <symbol id="i-retention" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><path d="M12 12v3.5l2 1.5"/></g></symbol>
+  <symbol id="i-breach" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.4 7.5 9.5 4.4-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="M12 8v4.5M12 16h.01"/></g></symbol>
+  <symbol id="i-ai" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z"/><path d="M18.5 15.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8.8-1.9Z"/></g></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></g></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></g></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/></g></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="4" width="17" height="7" rx="1.5"/><rect x="3.5" y="13" width="17" height="7" rx="1.5"/><path d="M7.5 7.5h.01M7.5 16.5h.01" stroke-width="2.6"/></g></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></g></symbol>
+  <symbol id="i-meter" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19a9 9 0 1 1 16 0"/><path d="m12 14 4-5"/><path d="M12 14h.01" stroke-width="3"/></g></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.3 2.3 4.7-5"/></g></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M7 6.8 10.1 11M7 17.2l3.1-4.2M13.9 11 17 6.8M13.9 13l3.1 4.2"/></g></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+</svg>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginView" class="login" hidden>
+  <aside class="login-hero" aria-hidden="true">
+    <div class="hero-brand">
+      <span class="logo mark"><img src="assets/nigrani-mark.png" alt=""></span>
+      <strong>NigraniAI</strong>
+    </div>
+    <figure class="hero-logo"><img src="assets/nigrani-logo.jpg" alt="NigraniAI"></figure>
+    <div class="hero-copy">
+      <h2>Privacy compliance,<br>in every log line.</h2>
+      <p>NigraniAI · Digital Personal Data Protection Act, 2023</p>
+    </div>
+  </aside>
+
+  <main class="login-main">
+    <form id="loginForm" class="login-form" novalidate>
+      <div class="login-brand">
+        <span class="logo mark"><img src="assets/nigrani-mark.png" alt=""></span>
+        <strong>NigraniAI</strong>
+      </div>
+      <h1>Welcome back</h1>
+      <p class="login-sub">Sign in to your account</p>
+
+      <label class="field">
+        <span>Email address</span>
+        <input id="email" type="email" autocomplete="username" spellcheck="false" required>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <span class="pw">
+          <input id="password" type="password" autocomplete="current-password" required>
+          <button type="button" id="pwToggle" class="icon-btn" aria-label="Show password" title="Show password"><svg><use href="#i-eye"/></svg></button>
+        </span>
+      </label>
+      <div id="loginErr" class="form-err" role="alert"></div>
+      <button id="loginBtn" type="submit" class="btn primary block">Sign in</button>
+    </form>
+
+
+  </main>
+
+</div>
+
+<!-- ============ APP ============ -->
+<div id="appView" class="app" hidden>
+  <aside class="side">
+    <div class="side-brand">
+      <span class="logo mark"><img src="assets/nigrani-mark.png" alt=""></span>
+      <span class="sb-txt"><strong>NigraniAI</strong><small id="wsName"></small></span>
+    </div>
+    <nav id="nav" aria-label="Main">
+      <button data-view="dashboard" class="on" aria-label="Dashboard"><svg><use href="#i-grid"/></svg><span>Dashboard</span></button>
+      <button data-view="telemetry" aria-label="Log Telemetry"><svg><use href="#i-logs"/></svg><span>Log Telemetry</span></button>
+      <button data-view="consent" aria-label="Consent &amp; Purpose"><svg><use href="#i-consent"/></svg><span>Consent &amp; Purpose</span></button>
+      <button data-view="datamap" aria-label="Data map"><svg><use href="#i-map"/></svg><span>Data map</span></button>
+      <button data-view="retention" aria-label="Retention"><svg><use href="#i-retention"/></svg><span>Retention</span></button>
+      <button data-view="breach" aria-label="Breach Response"><svg><use href="#i-breach"/></svg><span>Breach Response</span></button>
+      <button data-view="ai" aria-label="AI Assistant" class="nav-ai"><svg><use href="#i-ai"/></svg><span>AI Assistant</span></button>
+      <button data-view="iam" aria-label="Access management" hidden><svg><use href="#i-key"/></svg><span>Access (IAM)</span></button>
+      <button data-view="readiness" aria-label="DPDP readiness" hidden><svg><use href="#i-gauge"/></svg><span>Readiness score</span></button>
+    </nav>
+    <div class="side-user">
+      <div id="acctMenu" class="acct-menu" role="menu" aria-label="Account" hidden>
+        <div id="menuHead" class="acct-mhead"></div>
+        <button role="menuitem" data-acct="profile"><svg><use href="#i-user"/></svg>Profile</button>
+        <button role="menuitem" data-acct="security"><svg><use href="#i-lock"/></svg>Security</button>
+        <button role="menuitem" data-acct="preferences"><svg><use href="#i-gear"/></svg>Settings</button>
+        <button role="menuitem" data-acct="iam" data-need="iam:ListUsers|iam:ListPolicies" hidden><svg><use href="#i-key"/></svg>Access management</button>
+        <button role="menuitem" data-acct="usage" data-need="usage:ViewOwnUsage|usage:ViewAllUsage" hidden><svg><use href="#i-meter"/></svg>Usage &amp; plan</button>
+        <button role="menuitem" data-acct="activity"><svg><use href="#i-activity"/></svg>Activity</button>
+        <button role="menuitem" data-acct="system" data-need="system:ReadStatus" hidden><svg><use href="#i-server"/></svg>System status</button>
+        <div class="acct-theme"><span>Theme</span><div class="seg" role="radiogroup" aria-label="Theme"><button role="radio" data-theme-pref="light" aria-label="Light"><svg><use href="#i-sun"/></svg></button><button role="radio" data-theme-pref="dark" aria-label="Dark"><svg><use href="#i-moon"/></svg></button><button role="radio" data-theme-pref="system" aria-label="System">Auto</button></div></div>
+        <button role="menuitem" id="logoutBtn" class="acct-out"><svg><use href="#i-out"/></svg>Sign out</button>
+      </div>
+      <button id="acctBtn" class="acct-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="acctMenu">
+        <span id="avatar" class="avatar">A</span>
+        <span class="acct-txt"><b id="acctName"></b><span id="acctRole"></span></span>
+        <svg class="acct-chev" viewBox="0 0 24 24"><path d="m7 15 5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <h2 id="viewTitle">Dashboard</h2>
+      <div class="top-r">
+        <span id="tStatus" class="tstatus"></span>
+        <label class="switch" title="Refresh every 2 seconds">
+          <span>Live</span><input type="checkbox" id="live" checked><i></i>
+        </label>
+      </div>
+    </header>
+    <div id="usageBanner" class="us-banner" role="status" hidden></div>
+    <div id="billBanner" class="us-banner bad" role="status" hidden></div>
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view">
+      <div class="db-kpis">
+        <button class="panel db-kpi" data-open="breach"><span class="db-k"><svg><use href="#i-breach"/></svg>Breach response</span><b id="dbBreachBig">–</b><small id="dbBreachSub">Checking…</small></button>
+        <button class="panel db-kpi" data-open="consent"><span class="db-k"><svg><use href="#i-consent"/></svg>Consent &amp; purpose</span><b id="dbConsentBig">–</b><small id="dbConsentSub">Checking…</small></button>
+        <button class="panel db-kpi" data-open="retention"><span class="db-k"><svg><use href="#i-retention"/></svg>Retention</span><b id="dbRetBig">–</b><small id="dbRetSub">Checking…</small></button>
+        <button class="panel db-kpi" data-open="telemetry"><span class="db-k"><svg><use href="#i-logs"/></svg>Log telemetry</span><b id="dbLogBig">–</b><small id="dbLogSub">Checking…</small><svg id="dbSpark" class="db-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"></svg></button>
+      </div>
+
+      <div class="db-row">
+        <section class="panel db-card db-wide" aria-labelledby="dbActH">
+          <div class="db-chead">
+            <div><h3 id="dbActH">Log activity</h3><span id="dbLive" class="db-live">Loading…</span> <span id="dbLiveAt" class="tstatus"></span></div>
+            <div class="db-range" role="group" aria-label="Time range"><button data-range="24h">24 h</button><button data-range="3d">3 days</button><button data-range="7d">7 days</button></div>
+          </div>
+          <div id="dbStrip" class="db-strip"></div>
+          <div id="dbTimeline" class="ch"></div>
+          <div class="ch-legend"><span><i class="ch-key ch-info"></i>Info</span><span><i class="ch-key ch-warn"></i>Warning</span><span><i class="ch-key ch-err"></i>Error</span><span><i class="ch-key ch-line-key"></i>Personal-data events</span></div>
+        </section>
+        <section class="panel db-card" aria-labelledby="dbSvcH">
+          <div class="db-chead"><h3 id="dbSvcH">Logs by service</h3></div>
+          <div id="dbSvc"></div>
+        </section>
+      </div>
+
+      <div class="db-quad">
+        <section class="panel db-card" aria-labelledby="dbHttpH"><div class="db-chead"><h3 id="dbHttpH">API responses</h3><button class="link" data-open="telemetry">Logs →</button></div><div id="dbHttp"></div></section>
+        <section class="panel db-card" aria-labelledby="dbConH"><div class="db-chead"><h3 id="dbConH">Consent coverage</h3><button class="link" data-open="consent">Details →</button></div><div id="dbConsent"></div></section>
+        <section class="panel db-card" aria-labelledby="dbSigH"><div class="db-chead"><h3 id="dbSigH">Breach signals by detector</h3><button class="link" data-open="breach">Review →</button></div><div id="dbSignals"></div>
+          <div class="ch-legend sm"><span><i class="ch-key ch-cat-confidentiality"></i>Confidentiality</span><span><i class="ch-key ch-cat-integrity"></i>Integrity</span><span><i class="ch-key ch-cat-availability"></i>Availability</span><span class="muted">Faded: reviewed</span></div></section>
+        <section class="panel db-card" aria-labelledby="dbRetH"><div class="db-chead"><h3 id="dbRetH">Retention status</h3><button class="link" data-open="retention">Schedule →</button></div><div id="dbRet"></div>
+          <div class="ch-legend sm"><span><i class="ch-key ch-err"></i>Past deadline</span><span><i class="ch-key ch-warn"></i>Due soon</span><span><i class="ch-key ch-okdim"></i>On track</span><span><i class="ch-key ch-hold"></i>Legal hold</span></div></section>
+      </div>
+
+      <div class="db-cols">
+        <section class="panel cp-list db-attn" aria-labelledby="dbAttnH">
+          <div class="cp-list-head"><h3 id="dbAttnH">Needs attention <span id="dbAttnCount" class="cp-count-pill" hidden></span></h3></div>
+          <div id="dbAttn"><p class="cp-none">Checking every module…</p></div>
+        </section>
+        <section class="panel cp-list" aria-labelledby="dbMonH">
+          <div class="cp-list-head"><h3 id="dbMonH">Monitoring</h3><span class="muted">all time</span></div>
+          <dl class="db-facts">
+            <div><dt>Services monitored</dt><dd id="metricServices">–</dd></div>
+            <div><dt>Application log lines</dt><dd id="dbAct">–</dd></div>
+            <div><dt>Database log lines</dt><dd id="dbDb">–</dd></div>
+            <div><dt>Log lines with personal data masked</dt><dd id="dbPii">–</dd></div>
+            <div><dt>Errors logged</dt><dd id="dbErr">–</dd></div>
+            <div><dt>Latest log line</dt><dd id="dbLast">–</dd></div>
+          </dl>
+        </section>
+      </div>
+      <section class="panel cp-list db-mods" aria-labelledby="dbModH">
+        <div class="cp-list-head"><h3 id="dbModH">Compliance at a glance</h3><span class="muted">DPDP Act 2023 · DPDP Rules 2025</span></div>
+        <div id="dbMods" class="db-modgrid"></div>
+      </section>
+    </section>
+
+    <!-- LOG TELEMETRY -->
+    <section id="view-telemetry" class="view" hidden>
+      <div class="panel tele">
+        <div class="tele-bar">
+          <div id="tTabs" class="ttabs" role="tablist" aria-label="Service"></div>
+          <label class="switch" title="Show each log line exactly as stored">
+            <span>Raw lines</span><input type="checkbox" id="tRaw"><i></i>
+          </label>
+        </div>
+
+        <div class="tfilters">
+          <select id="tRange" aria-label="Time range">
+            <option value="">All time</option>
+            <option value="15">Last 15 min</option>
+            <option value="60">Last 1 hour</option>
+            <option value="360">Last 6 hours</option>
+            <option value="1440">Last 24 hours</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+          </select>
+          <select id="tLevel" aria-label="Level">
+            <option value="">All levels</option>
+            <option value="ERROR">ERROR</option>
+            <option value="WARN+">WARN + ERROR</option>
+            <option value="WARN">WARN</option>
+            <option value="INFO">INFO</option>
+          </select>
+          <select id="tLayer" aria-label="Layer">
+            <option value="">All layers</option>
+            <option value="application">Application</option>
+            <option value="database">Database</option>
+          </select>
+          <select id="tKind" aria-label="Kind">
+            <option value="">All kinds</option>
+            <option value="privacy">Privacy</option>
+            <option value="security">Security</option>
+            <option value="request">Request</option>
+            <option value="business">Business</option>
+            <option value="error">Error</option>
+            <option value="system">System</option>
+          </select>
+          <select id="tFlag" aria-label="PII">
+            <option value="">All logs</option>
+            <option value="any">Flagged</option>
+            <option value="pii">PII masked in log</option>
+            <option value="personal">Personal data</option>
+            <option value="unmasked">Unmasked personal data (v2)</option>
+          </select>
+          <input id="tQ" type="search" placeholder="Search logs" aria-label="Search logs">
+          <span id="tTrace" class="trace-chip" hidden>Trace <code id="tTraceId"></code><button id="tTraceClear" aria-label="Clear trace filter">×</button></span>
+          <button id="tReset" class="btn ghost">Reset</button>
+        </div>
+
+        <div class="lgrid" role="table" aria-label="Logs">
+          <div class="lrow lhead" role="row">
+            <div role="columnheader">Time (IST)</div><div role="columnheader">Level</div>
+            <div role="columnheader">Service</div><div role="columnheader">Event</div>
+            <div role="columnheader">Flags</div>
+          </div>
+          <div id="tScroll" class="lscroll"><div id="tList"></div></div>
+        </div>
+        <div class="tfoot">
+          <span id="tShown"></span>
+          <button id="tMore" class="btn ghost" hidden>Load older</button>
+        </div>
+      </div>
+      <div id="tToast" class="ttoast" role="status" hidden></div>
+    </section>
+
+    <!-- CONSENT & PURPOSE -->
+    <section id="view-consent" class="view" hidden>
+      <div class="cp-top">
+        <div class="cp-head-r">
+          <span id="cpMeta" class="tstatus"></span>
+          <button id="cpRefresh" class="btn ghost">Check now</button>
+        </div>
+      </div>
+      <div id="cpTabs" class="cp-tabs" role="tablist" aria-label="Consent sections">
+        <button role="tab" data-tab="overview" class="on" aria-selected="true">Overview</button>
+        <button role="tab" data-tab="customers" aria-selected="false">Customers</button>
+        <button role="tab" data-tab="issues" aria-selected="false">Issues <span id="cpIssueCount" class="cp-count-pill">–</span></button>
+        <button role="tab" data-tab="rules" aria-selected="false">Rules</button>
+      </div>
+      <div id="cpBody"></div>
+      <div id="cpDraft" class="cp-draft" hidden>
+        <span id="cpDraftImpact"></span>
+        <input id="cpNote" type="text" placeholder="Describe the change" aria-label="Change note" maxlength="300">
+        <button id="cpDiscard" class="btn ghost">Discard</button>
+        <button id="cpSave" class="btn primary">Save new version</button>
+      </div>
+      <dialog id="cpSheet" class="cp-sheet" aria-labelledby="cpSheetTitle">
+        <div class="cp-sheet-head">
+          <h3 id="cpSheetTitle"></h3>
+          <button type="button" id="cpSheetClose" class="icon-btn" aria-label="Close">×</button>
+        </div>
+        <div id="cpSheetBody" class="cp-sheet-body"></div>
+      </dialog>
+      <dialog id="cpDialog" class="cp-dialog">
+        <form id="cpDialogForm" method="dialog">
+          <h3 id="cpDialogTitle"></h3>
+          <div id="cpDialogBody"></div>
+          <div id="cpDialogErr" class="form-err" role="alert"></div>
+          <div class="cp-dialog-actions">
+            <button value="cancel" class="btn ghost" formnovalidate>Cancel</button>
+            <button value="ok" class="btn primary">Apply</button>
+          </div>
+        </form>
+      </dialog>
+      <div id="cpToast" class="ttoast" role="status" hidden></div>
+    </section>
+
+    <!-- RETENTION -->
+    <section id="view-retention" class="view" hidden>
+      <div class="cp-top">
+        <div class="cp-head-r">
+          <span id="rtMeta" class="tstatus"></span>
+          <button id="rtRefresh" class="btn ghost">Check now</button>
+        </div>
+      </div>
+      <div id="rtTabs" class="cp-tabs" role="tablist" aria-label="Retention sections">
+        <button role="tab" data-tab="overview" class="on" aria-selected="true">Overview</button>
+        <button role="tab" data-tab="records" aria-selected="false">Records <span id="rtPastCount" class="cp-count-pill" hidden></span></button>
+        <button role="tab" data-tab="customers" aria-selected="false">Erasure &amp; inactivity</button>
+        <button role="tab" data-tab="schedule" aria-selected="false">Schedule</button>
+      </div>
+      <div id="rtBody"></div>
+      <div id="rtDraft" class="cp-draft" hidden>
+        <span id="rtDraftImpact"></span>
+        <input id="rtNote" type="text" placeholder="Describe the change" aria-label="Change note" maxlength="300">
+        <button id="rtDiscard" class="btn ghost">Discard</button>
+        <button id="rtSave" class="btn primary">Save new version</button>
+      </div>
+      <div id="rtToast" class="ttoast" role="status" hidden></div>
+    </section>
+
+    <!-- BREACH RESPONSE -->
+    <section id="view-breach" class="view" hidden>
+      <div class="cp-top">
+        <div class="cp-head-r">
+          <span id="brMeta" class="tstatus"></span>
+          <button id="brRefresh" class="btn ghost">Check now</button>
+          <button id="brReport" class="btn primary">Report a breach</button>
+        </div>
+      </div>
+      <div id="brTabs" class="cp-tabs" role="tablist" aria-label="Breach response sections">
+        <button role="tab" data-tab="overview" class="on" aria-selected="true">Overview</button>
+        <button role="tab" data-tab="signals" aria-selected="false">Signals <span id="brSigCount" class="cp-count-pill" hidden></span></button>
+        <button role="tab" data-tab="incidents" aria-selected="false">Breach register <span id="brIncCount" class="cp-count-pill" hidden></span></button>
+        <button role="tab" data-tab="model" aria-selected="false"><span id="brModelDot" class="br-mdot" aria-hidden="true"></span>Anomaly model <span class="br-mlbeta">ML</span></button>
+        <button role="tab" data-tab="detectors" aria-selected="false">Detectors &amp; settings</button>
+      </div>
+      <div id="brBody"></div>
+      <div id="brDraft" class="cp-draft" hidden>
+        <span id="brDraftImpact"></span>
+        <input id="brNote" type="text" placeholder="Describe the change" aria-label="Change note" maxlength="300">
+        <button id="brDiscard" class="btn ghost">Discard</button>
+        <button id="brSave" class="btn primary">Save new version</button>
+      </div>
+      <dialog id="brDialog" class="cp-dialog br-dialog" aria-labelledby="brDialogTitle">
+        <form id="brDialogForm" method="dialog">
+          <h3 id="brDialogTitle">Report a breach</h3>
+          <p class="br-dsub">For incidents the detectors can't see: a lost device, an email to the wrong person, a vendor's notice. The response clocks start from “Became aware”.</p>
+          <div id="brDialogBody"></div>
+          <div id="brDialogErr" class="form-err" role="alert"></div>
+          <div class="cp-dialog-actions">
+            <button value="cancel" class="btn ghost" formnovalidate>Cancel</button>
+            <button value="ok" class="btn primary">Open incident</button>
+          </div>
+        </form>
+      </dialog>
+      <div id="brToast" class="ttoast" role="status" hidden></div>
+    </section>
+
+    <!-- AI ASSISTANT -->
+    <section id="view-ai" class="view" hidden>
+      <div class="ai-layout">
+        <div id="aiMain" class="panel ai-main">
+          <div class="ai-head">
+            <h3 id="aiTitle">New conversation</h3>
+            <button class="btn ghost sm" data-act="new">+ New chat</button>
+          </div>
+          <div id="aiThread" class="ai-thread" aria-live="polite"></div>
+          <form id="aiForm" class="ai-composer">
+            <div id="aiAttach" class="ai-attachrow"></div>
+            <div class="ai-inputrow">
+              <button type="button" class="icon-btn" data-act="attach" aria-label="Attach a file" title="Attach a log, CSV or text file">📎</button>
+              <textarea id="aiInput" rows="1" placeholder="Ask about consent, retention, breaches or logs…" aria-label="Your question" maxlength="4000"></textarea>
+              <button id="aiSend" type="submit" class="btn primary ai-send" aria-label="Send">Ask</button>
+              <button id="aiStop" type="button" class="btn ghost ai-send" hidden>Stop</button>
+            </div>
+            <div class="ai-hint"><span id="aiUses"></span><span>Enter to send · Shift+Enter for a new line · drop a file to attach</span></div>
+            <input id="aiFile" type="file" hidden accept=".log,.txt,.csv,.json,.md,.sql,.yaml,.yml,.xml,.py,.js,.java,.properties,text/*">
+          </form>
+          <div class="ai-drop" aria-hidden="true"><b>Drop to attach</b><span>Logs, CSV, JSON, SQL or text: up to 2 MB</span></div>
+        </div>
+        <aside class="ai-side">
+          <section class="panel cp-scard">
+            <h3>Data the AI can use</h3>
+            <div id="aiScopes"></div>
+            <p class="ai-privacy">Only counts, ids, rules and findings are shared, never names, emails, phone numbers or raw log messages.</p>
+          </section>
+          <section class="panel cp-scard ai-hist">
+            <div class="cp-list-head flat"><h3>Conversations</h3><button class="link" data-act="clear-all">Clear</button></div>
+            <div id="aiHistory"></div>
+          </section>
+          <p id="aiModel" class="ai-model"></p>
+        </aside>
+      </div>
+      <div id="aiToast" class="ttoast" role="status" hidden></div>
+    </section>
+
+    <!-- ACCESS MANAGEMENT (IAM) -->
+    <section id="view-iam" class="view" hidden>
+      <div id="iamBody"></div>
+      <div id="iamToast" class="ttoast" role="status" hidden></div>
+    </section>
+
+
+    <!-- READINESS -->
+    <section id="view-readiness" class="view" hidden><div id="rdBody"></div></section>
+
+    <!-- DATA MAP -->
+    <section id="view-datamap" class="view" hidden><div id="dmBody"></div></section>
+
+
+    <!-- USAGE -->
+    <section id="view-usage" class="view" hidden>
+      <div id="usBody"></div>
+      <div id="usToast" class="ttoast" role="status" hidden></div>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section id="view-account" class="view" hidden>
+      <div id="acctHead" class="panel ac-head"></div>
+      <div class="ac-layout">
+        <nav id="acctNav" class="ac-nav" aria-label="Account sections"></nav>
+        <div id="acctBody" class="panel ac-body"></div>
+      </div>
+      <div id="acToast" class="ttoast" role="status" hidden></div>
+    </section>
+  </main>
+</div>
+
+<script src="telemetry.js?v=16"></script>
+<script src="consent.js?v=38"></script>
+<script src="retention.js?v=8"></script>
+<script src="breach.js?v=11"></script>
+<script src="dashboard.js?v=10"></script>
+<script src="ai.js?v=9"></script>
+<script src="account.js?v=9"></script>
+<script src="iam.js?v=5"></script>
+<script src="usage.js?v=6"></script>
+<script src="readiness.js?v=6"></script>
+<script src="datamap.js?v=10"></script>
+<script src="billing.js?v=3"></script>
+<script src="app.js?v=59"></script>
+</body>
+</html>

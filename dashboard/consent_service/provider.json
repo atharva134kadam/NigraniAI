@@ -1,0 +1,152 @@
+{
+  "_about": "Provider settings for this client's copy. Edited only by the provider on the server; the client's admins can't see or change it. Prices in rupees per month, before GST. Meter values: [included per month (null = unlimited), overage price per block]. Blocks: log lines per 10,000; AI tokens per 1,00,000; others per unit.",
+  "seller": {
+    "legal_name": "",
+    "address": "",
+    "state": "",
+    "gstin": "",
+    "email": ""
+  },
+  "billing": {
+    "prefix": "DPDP",
+    "due_days": 15,
+    "gst": true,
+    "sac": "998314",
+    "grace_days": 14,
+    "initial_plan": "growth"
+  },
+  "plans": {
+    "free": {
+      "name": "Free",
+      "base_fee": 0,
+      "meters": {
+        "logs.analysed": [
+          100000,
+          0
+        ],
+        "ai.questions": [
+          50,
+          0
+        ],
+        "ai.tokens": [
+          300000,
+          0
+        ],
+        "ai.attachments": [
+          10,
+          0
+        ],
+        "lookups": [
+          20,
+          0
+        ],
+        "seats": [
+          2,
+          0
+        ]
+      },
+      "hard": [
+        "ai.questions",
+        "ai.tokens",
+        "ai.attachments",
+        "lookups",
+        "seats"
+      ]
+    },
+    "starter": {
+      "name": "Starter",
+      "base_fee": 19999,
+      "meters": {
+        "logs.analysed": [
+          1000000,
+          25
+        ],
+        "ai.questions": [
+          500,
+          0
+        ],
+        "ai.tokens": [
+          3000000,
+          40
+        ],
+        "ai.attachments": [
+          100,
+          5
+        ],
+        "lookups": [
+          300,
+          2
+        ],
+        "seats": [
+          5,
+          1500
+        ]
+      },
+      "hard": [
+        "seats"
+      ]
+    },
+    "growth": {
+      "name": "Growth",
+      "base_fee": 79999,
+      "meters": {
+        "logs.analysed": [
+          10000000,
+          15
+        ],
+        "ai.questions": [
+          3000,
+          0
+        ],
+        "ai.tokens": [
+          20000000,
+          30
+        ],
+        "ai.attachments": [
+          1000,
+          3
+        ],
+        "lookups": [
+          3000,
+          1
+        ],
+        "seats": [
+          25,
+          1200
+        ]
+      },
+      "hard": []
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "base_fee": 250000,
+      "meters": {
+        "logs.analysed": [
+          null,
+          0
+        ],
+        "ai.questions": [
+          null,
+          0
+        ],
+        "ai.tokens": [
+          null,
+          0
+        ],
+        "ai.attachments": [
+          null,
+          0
+        ],
+        "lookups": [
+          null,
+          0
+        ],
+        "seats": [
+          null,
+          0
+        ]
+      },
+      "hard": []
+    }
+  }
+}

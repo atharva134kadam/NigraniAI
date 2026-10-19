@@ -1,0 +1,9 @@
+# secrets and live data stay out of git (they live on the server in /opt/nigrani/shared)
+.env
+consent_service/data/
+consent_service/.pii-venv/
+deploy/target.env
+__pycache__/
+*.pyc
+.DS_Store
+.claude/

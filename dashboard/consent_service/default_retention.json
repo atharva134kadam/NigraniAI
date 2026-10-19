@@ -1,0 +1,71 @@
+{
+  "name": "ShopSmart retention schedule",
+  "source": "ShopSmart Customer Data Inventory, 15 Oct 2026 (section 11) and DPDP Rules 2025, Rule 8",
+  "marketing_column": "marketing_consent(optional)",
+  "due_soon_days": 30,
+  "rules": [
+    {
+      "id": "E1", "type": "erasure", "enabled": true,
+      "name": "Erase customer data after an erasure request",
+      "keep": { "n": 120, "unit": "seconds" },
+      "steps": ["anonymise_profile", "replace_email", "remove_phone", "marketing_off", "delete_addresses", "delete_wishlist", "revoke_sessions"],
+      "basis": "The customer asked for erasure. The demo uses RETENTION_ERASE_AFTER_SECONDS = 120 seconds; set a real period for production. Orders and payments are kept as tax records.",
+      "ref": "DPDP Act 2023 · s.12(3), s.8(7)"
+    },
+    {
+      "id": "A1", "type": "age", "enabled": true, "source": "shop",
+      "name": "Session tokens", "table": "auth_refresh_tokens",
+      "clock_column": "expires_at", "clock_label": "they expire",
+      "keep": { "n": 1, "unit": "days" }, "action": "delete",
+      "basis": "A session token has no use once it expires (sessions last 7 days, REFRESH_TOKEN_DAYS).",
+      "ref": "DPDP Act 2023 · s.8(7)"
+    },
+    {
+      "id": "A2", "type": "age", "enabled": true, "source": "shop",
+      "name": "Notifications", "table": "notifications",
+      "clock_column": "created_at", "clock_label": "they were created",
+      "keep": { "n": 180, "unit": "days" }, "action": "review",
+      "basis": "Open item in the data inventory: notifications are kept after erasure and have no retention period yet. Review them at 180 days until the team decides one.",
+      "ref": "DPDP Act 2023 · s.8(7)"
+    },
+    {
+      "id": "A3", "type": "age", "enabled": true, "source": "guardrail",
+      "name": "NigraniAI activity logs", "table": "activity_logs",
+      "clock_column": "logged_at", "clock_label": "they were logged",
+      "keep": { "n": 18, "unit": "months" }, "action": "delete",
+      "basis": "Open item in the data inventory: set a deletion schedule for logs in the NigraniAI project. Must stay above the 1-year legal minimum (L3).",
+      "ref": "DPDP Act 2023 · s.8(7)"
+    },
+    {
+      "id": "L1", "type": "legal_minimum", "enabled": true, "source": "shop",
+      "name": "Orders", "table": "customer_orders",
+      "clock_column": "created_at", "clock_label": "the order",
+      "keep": { "n": 8, "unit": "years" },
+      "basis": "Tax records: the CGST Act requires accounts to be kept for 72 months from the annual-return due date, about 7 to 8 years after the order.",
+      "ref": "CGST Act 2017 · s.36 (retention required by law, DPDP Act s.8(7))"
+    },
+    {
+      "id": "L2", "type": "legal_minimum", "enabled": true, "source": "shop",
+      "name": "Payments", "table": "payments",
+      "clock_column": "created_at", "clock_label": "the payment",
+      "keep": { "n": 8, "unit": "years" },
+      "basis": "Tax and reconciliation records, kept on the same basis as orders.",
+      "ref": "CGST Act 2017 · s.36 (retention required by law, DPDP Act s.8(7))"
+    },
+    {
+      "id": "L3", "type": "legal_minimum", "enabled": true, "source": "guardrail",
+      "name": "NigraniAI activity logs", "table": "activity_logs",
+      "clock_column": "logged_at", "clock_label": "they were logged",
+      "keep": { "n": 1, "unit": "years" },
+      "basis": "Personal data, traffic data and logs of processing must be kept for at least one year.",
+      "ref": "DPDP Rules 2025 · Rule 8(3)"
+    },
+    {
+      "id": "I1", "type": "inactivity", "enabled": true,
+      "name": "Inactive customer accounts",
+      "keep": { "n": 3, "unit": "years" }, "notice_hours": 48,
+      "basis": "Erase after 3 years without a sign-in or order, warning the customer 48 hours before. Mandatory for e-commerce platforms with 2 crore+ registered users; applied here as good practice.",
+      "ref": "DPDP Rules 2025 · Rule 8(1)–(2), Third Schedule"
+    }
+  ]
+}

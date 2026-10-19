@@ -1,0 +1,74 @@
+{
+  "name": "ShopSmart breach response",
+  "source": "DPDP Act 2023 s.2(u), s.8(5)-(6); DPDP Rules 2025 Rule 7; CERT-In Directions of 28 April 2022",
+  "organisation": "ShopSmart",
+  "contact": { "name": "", "role": "Data Protection Officer", "email": "", "phone": "" },
+  "clocks": { "cert_in_hours": 6, "board_initial_hours": 24, "principals_hours": 48, "board_report_hours": 72, "warn_hours": 12 },
+  "lookback_days": 7,
+  "anomaly": { "enabled": true, "sensitivity": "medium", "bucket_minutes": 10, "min_history": 12, "auto_open": false },
+  "detectors": [
+    {
+      "id": "D1", "enabled": true, "name": "Burst of failed sign-ins",
+      "category": "confidentiality", "severity": "high", "auto_open": true,
+      "source": "activity_logs", "match": [{ "field": "http_status", "op": "eq", "value": "401" }],
+      "measure": "count", "threshold": 20, "window": { "n": 10, "unit": "minutes" }, "group_by": "service",
+      "why": "Many rejected sign-ins in a short time suggest password guessing or stolen-credential testing. A success after the burst may mean an account was taken over.",
+      "steps": ["Check whether any sign-in succeeded from the same source after the burst", "Lock or reset affected accounts", "Rate-limit or block the source"],
+      "ref": "DPDP Act 2023 · s.8(5) · CERT-In: unauthorised access"
+    },
+    {
+      "id": "D2", "enabled": true, "name": "Services holding personal data are failing",
+      "category": "availability", "severity": "medium", "auto_open": false,
+      "source": "activity_logs", "match": [{ "field": "http_status", "op": "gte", "value": "500" }],
+      "measure": "count", "threshold": 5, "window": { "n": 15, "unit": "minutes" }, "group_by": "service",
+      "why": "Loss of access to personal data is a personal data breach under s.2(u) when it compromises availability, e.g. customers cannot reach their account or orders.",
+      "steps": ["Confirm whether personal data was unavailable or lost, or only the service was slow", "Restore service and check data integrity", "Record the duration and the customers affected"],
+      "ref": "DPDP Act 2023 · s.2(u) (loss of access)"
+    },
+    {
+      "id": "D3", "enabled": true, "name": "Personal data written to application logs",
+      "category": "confidentiality", "severity": "medium", "auto_open": false,
+      "source": "activity_logs", "match": [{ "field": "risk_indicators", "op": "has", "value": "pii_pattern_masked" }],
+      "measure": "count", "threshold": 1, "window": { "n": 1, "unit": "days" }, "group_by": "service",
+      "why": "Card numbers, emails or phone numbers in logs are an accidental disclosure to everyone who can read the logs. The masker caught these; check whether the raw value reached any log store.",
+      "steps": ["Open the log lines and confirm whether it is real personal data or a false match", "Purge raw copies from log stores and backups", "Fix the code that logged it"],
+      "ref": "DPDP Act 2023 · s.2(u) (accidental disclosure), s.8(5)"
+    },
+    {
+      "id": "D4", "enabled": true, "name": "Bulk read of personal data",
+      "category": "confidentiality", "severity": "critical", "auto_open": true,
+      "source": "database_logs", "match": [{ "field": "personal_data", "op": "is", "value": "true" }],
+      "measure": "sum", "sum_field": "row_count", "threshold": 500, "window": { "n": 5, "unit": "minutes" }, "group_by": "service",
+      "why": "An unusually large number of personal-data rows read in a few minutes is the typical shape of data exfiltration.",
+      "steps": ["Identify the query, caller and destination", "Revoke the credentials used", "Estimate which customers' records were read"],
+      "ref": "DPDP Act 2023 · s.8(5) · CERT-In: data breach / data leak"
+    },
+    {
+      "id": "D5", "enabled": true, "name": "Staff opened the full customer list",
+      "category": "confidentiality", "severity": "low", "auto_open": false,
+      "source": "activity_logs", "match": [{ "field": "event", "op": "eq", "value": "CUSTOMER_LIST_VIEWED" }],
+      "measure": "count", "threshold": 1, "window": { "n": 1, "unit": "hours" }, "group_by": "actor_ref",
+      "why": "Viewing every customer at once should be rare and tied to a task. Repeated views can indicate misuse by an insider.",
+      "steps": ["Confirm the staff member had a business reason", "Check whether the list was exported or copied"],
+      "ref": "DPDP Act 2023 · s.8(5) (access control)"
+    },
+    {
+      "id": "D6", "enabled": true, "name": "Database errors on personal-data services",
+      "category": "integrity", "severity": "medium", "auto_open": false,
+      "source": "database_logs", "match": [{ "field": "status", "op": "eq", "value": "error" }],
+      "measure": "count", "threshold": 1, "window": { "n": 15, "unit": "minutes" }, "group_by": "service",
+      "why": "Failed writes or lost connections can leave personal data altered, incomplete or unavailable.",
+      "steps": ["Check the SQL state and whether any write was lost", "Reconcile affected records"],
+      "ref": "DPDP Act 2023 · s.2(u) (alteration, loss of access)"
+    },
+    {
+      "id": "D7", "enabled": true, "name": "Erasure and retention jobs are failing",
+      "category": "integrity", "severity": "medium", "auto_open": false,
+      "source": "activity_logs", "match": [{ "field": "event", "op": "eq", "value": "retention_sweep_failed" }],
+      "measure": "count", "threshold": 3, "window": { "n": 1, "unit": "hours" }, "group_by": "service",
+      "why": "When the job that erases data fails, personal data is kept after it should have been deleted. Not a breach by itself, but it breaks s.8(7) and s.12(3).",
+      "steps": ["Fix the job and re-run it", "Check Retention for customers whose erasure is now overdue"],
+      "ref": "DPDP Act 2023 · s.8(7), s.12(3)"
+    }
+  ]
+}
