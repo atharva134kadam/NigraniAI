@@ -672,6 +672,29 @@ def run_detectors(doc, detectors, token):
 _scan_cache = {"key": None, "at": 0, "value": None}
 
 
+_win_count = {"key": None, "at": 0, "value": {}}
+
+
+def window_lines(since, token):
+    """How many log lines the detectors watch: exact row counts of both log tables since `since`
+    (one HEAD-sized request each, cached for a minute). The detectors themselves ask the database for
+    the matching lines only, so this is what "every line is checked" covers."""
+    c = _win_count
+    if c["key"] == since[:16] and time.time() - c["at"] < 60:
+        return c["value"]
+    out = {}
+    for table in ("activity_logs", "database_logs"):
+        url = f"{AUTH_URL}/rest/v1/{table}?" + urllib.parse.urlencode([("select", "id"), ("logged_at", f"gte.{since}"), ("limit", "1")])
+        req = urllib.request.Request(url, headers={"apikey": AUTH_ANON, "Authorization": f"Bearer {token}", "Accept-Profile": GR_SCHEMA, "Prefer": "count=exact"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                out[table] = int((r.headers.get("Content-Range") or "*/0").split("/")[-1])
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            out[table] = None
+    c.update(key=since[:16], at=time.time(), value=out)
+    return out
+
+
 def breach_scan(token, user):
     """Current detectors on the live logs, merged with triage state. Signals from
     auto-open detectors start an incident the first time they are seen."""
@@ -726,7 +749,8 @@ def breach_scan(token, user):
                     changed = True
         if changed:
             write_incidents(reg)
-    return {"since": since, "version": doc["version"], "results": results, "triage": reg["triage"], "incidents": reg["incidents"]}
+    return {"since": since, "version": doc["version"], "results": results, "triage": reg["triage"], "incidents": reg["incidents"],
+            "window_lines": window_lines(since, token)}
 
 
 # ---------------------------------------------------------------- anomaly model (unsupervised ML on the NigraniAI logs)

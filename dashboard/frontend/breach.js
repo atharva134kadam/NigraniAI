@@ -226,7 +226,7 @@ const Breach = (() => {
         ${kpi(open.length ? "bad" : "ok", "Open incidents", num(open.length), open.length ? `${num(open.filter((i) => i.status === "suspected").length)} suspected · ${num(open.filter((i) => i.status !== "suspected").length)} confirmed or contained` : "no breach being handled", `data-goto="incidents"`)}
         ${kpi(overdue ? "bad" : next ? "warn" : "", "Next deadline", next ? esc(next.n.state === "overdue" ? "Overdue" : span(next.n.left)) : "–", next ? `${esc(next.n.label)} · ${esc(next.i.id)}` : "no clock running", next ? `data-inc="${esc(next.i.id)}"` : "")}
         ${kpi(fresh.length ? "warn" : "ok", "Signals to review", num(fresh.length), fresh.length ? `from ${plural(new Set(fresh.map((s) => s.detector)).size, "detector")}` : "every signal is triaged", `data-goto="signals"`)}
-        ${kpi("", "Detectors on", `${num(on.length)}<small class="br-of"> of ${num(dets.length)}</small>`, `${num(scanned)} log lines checked${AN().enabled ? " · ML model on" : ""}`, `data-goto="detectors"`)}
+        ${kpi("", "Detectors on", `${num(on.length)}<small class="br-of"> of ${num(dets.length)}</small>`, (() => { const w = S.scan.window_lines || {}, all = (w.activity_logs || 0) + (w.database_logs || 0); return all ? `watching all ${num(all)} log lines of the last ${plural(P().lookback_days, "day")} · ${num(scanned)} matched a detector${AN().enabled ? " · ML model on" : ""}` : `${num(scanned)} matching log lines${AN().enabled ? " · ML model on" : ""}`; })(), `data-goto="detectors"`)}
       </div>
       ${open.length ? `<section class="panel cp-list" aria-labelledby="brClocks">
         <div class="cp-list-head"><h3 id="brClocks">Response clocks</h3><span class="muted">Clocks start when you became aware of the breach</span></div>
