@@ -1151,6 +1151,7 @@ Date: ${today} (IST)`;
     },
     // For the main dashboard: loads once if needed, then reuses the last scan for 60 s.
     async summary() {
+      for (let i = 0; i < 150 && S.busy; i++) await new Promise((r) => setTimeout(r, 200));   // a load already running: wait for it (max 30 s)
       if (!S.busy && (!S.scan || !S.loadedAt || Date.now() - S.loadedAt > 60000)) await loadAll({ withPolicy: !S.draft });
       if (!S.scan) return null;
       const open = S.incidents.filter(OPEN);

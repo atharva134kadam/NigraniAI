@@ -290,7 +290,7 @@ const AI = (() => {
     if (!b) return;
     e.preventDefault(); e.stopPropagation();
     const [mod, ...rest] = b.dataset.askAi.split(":");
-    const item = mod === "consent" ? Consent.aiItem(rest.join(":")) : mod === "breach" ? Breach.aiItem(rest.join(":")) : mod === "readiness" ? Readiness.aiItem() : mod === "datamap" ? DataMap.aiItem() : mod === "evidence" ? Evidence.aiItem(rest.join(":")) : null;
+    const item = mod === "consent" ? Consent.aiItem(rest.join(":")) : mod === "breach" ? Breach.aiItem(rest.join(":")) : mod === "readiness" ? Readiness.aiItem(rest.join(":")) : mod === "datamap" ? DataMap.aiItem() : mod === "evidence" ? Evidence.aiItem(rest.join(":")) : null;
     if (!item) return;
     show("ai");
     A.cur = null; A.attach = { name: item.name, text: item.text };

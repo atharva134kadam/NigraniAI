@@ -359,6 +359,7 @@ const Dashboard = (() => {
   // For the AI assistant: log aggregates from the 7-day window, pre-ranked so the model reads
   // numbers instead of adding them up; plus all-time counts. No log messages are included.
   async function context() {
+    for (let i = 0; i < 150 && D.loading; i++) await new Promise((r) => setTimeout(r, 200));   // a load already running: wait for it (max 30 s)
     if (!D.loadedAt) await refreshLogs();
     if (!D.mods.logs) await loadLogFacts().then((v) => (D.mods.logs = v)).catch(() => {});
     const names = D.mods.logs?.names || {}, H = fmt({ day: "numeric", month: "short", hour: "numeric", hour12: true });

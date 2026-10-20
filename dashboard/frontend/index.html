@@ -14,7 +14,7 @@
   try { document.documentElement.dataset.theme = localStorage.getItem("theme") === "dark" ? "dark" : "light"; }
   catch { document.documentElement.dataset.theme = "light"; }
 </script>
-<link rel="stylesheet" href="style.css?v=70">
+<link rel="stylesheet" href="style.css?v=71">
 <script src="config.js?v=17"></script>
 </head>
 <body>
@@ -421,8 +421,7 @@
 
 
     <!-- READINESS -->
-    <section id="view-readiness" class="view" hidden>
-      <header class="panel dm-hero vh-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Act 2023 · DPDP Rules 2025</span></div><h2>How ready you are for a DPDP audit</h2><p class="muted">One score across consent, retention, breach response, security, public exposure and evidence, with what to fix first.</p></div></header><div id="rdBody"></div></section>
+    <section id="view-readiness" class="view" hidden><div id="rdBody"></div></section>
 
     <!-- DATA MAP -->
     <section id="view-evidence" class="view" hidden><div id="evBody"></div><div id="evToast" class="ttoast ok" role="status" hidden></div></section>
@@ -448,17 +447,17 @@
 </div>
 
 <script src="telemetry.js?v=16"></script>
-<script src="consent.js?v=38"></script>
-<script src="retention.js?v=8"></script>
-<script src="breach.js?v=11"></script>
-<script src="dashboard.js?v=10"></script>
-<script src="ai.js?v=10"></script>
+<script src="consent.js?v=39"></script>
+<script src="retention.js?v=9"></script>
+<script src="breach.js?v=12"></script>
+<script src="dashboard.js?v=11"></script>
+<script src="ai.js?v=11"></script>
 <script src="account.js?v=9"></script>
 <script src="iam.js?v=5"></script>
 <script src="usage.js?v=6"></script>
-<script src="readiness.js?v=7"></script>
-<script src="evidence.js?v=2"></script>
-<script src="datamap.js?v=11"></script>
+<script src="readiness.js?v=10"></script>
+<script src="evidence.js?v=3"></script>
+<script src="datamap.js?v=12"></script>
 <script src="billing.js?v=3"></script>
 <script src="app.js?v=61"></script>
 </body>

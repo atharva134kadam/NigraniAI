@@ -1,9 +1,9 @@
-/* DPDP readiness score: a 0-100 score and grade built from nine areas, each scored from what the
+/* DPDP readiness score: a 0-100 score and grade built from eight areas, each scored from what the
    dashboard already measures (breach detectors and the anomaly model, the breach register and its
-   clocks, consent coverage, retention deadlines, access policies, log coverage). Every finding cites
-   the law and gives a fix. Areas the person may not read are "not assessed", not failed.
-   Results are saved with a score history. The "Public exposure" area comes from the server's exposure
-   test (reads the customer database with the shop's public key); its own tab shows table-by-table results.
+   clocks, consent coverage, retention deadlines, access policies, log coverage, the evidence ledger,
+   the data map). Every finding cites the law and gives a fix. Areas the person may not read are
+   "not assessed", not failed. Results are saved with a score history. The page ranks open findings
+   by how much each could raise the score ("Fix these first") and links each area to its section.
    "Records & evidence" comes from the server's hash-chained ledger; the Evidence & audit section
    (evidence.js) verifies it, shows the chain and the daily seals, and builds / checks evidence packs.
    Uses Breach / Consent / Retention / Dashboard modules and session / can / ME from app.js. */
@@ -17,7 +17,7 @@ const Readiness = (() => {
   const grade = (s) => (s >= 85 ? "A" : s >= 70 ? "B" : s >= 55 ? "C" : s >= 40 ? "D" : "E");
   const clamp = (x) => Math.max(0, Math.min(1, x));
 
-  const S = { result: null, history: [], busy: false, err: "", started: false, step: "", tab: "score", exp: null, expBusy: false, expErr: "", ev: null, evBusy: "", evErr: "", check: null };
+  const S = { result: null, history: [], busy: false, err: "", started: false, step: "", done: [], open: new Set() };
 
   async function api(path, opts = {}) {
     const go = () => fetch(BASE + path, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${session?.access_token || ""}`, ...(opts.body ? { "Content-Type": "application/json" } : {}) } });
@@ -106,20 +106,6 @@ const Readiness = (() => {
     out.push(lines && errs / lines < 0.05 ? f("ok", `${((errs / Math.max(1, lines)) * 100).toFixed(1)}% of log lines are errors.`, "Rule 6(1)(c)") : f("warn", `${num(errs)} error lines (${((errs / Math.max(1, lines)) * 100).toFixed(1)}%).`, "Rule 6(1)(c)", "Look at the busiest error sources in the Dashboard."));
     return { score: 30 * (services ? 1 : 0) + 30 * (lines ? 1 : 0) + 20 * (c.all_time?.lines_with_pii_masked ? 1 : 0) + 20 * (lines && errs / lines < 0.05 ? 1 : 0), findings: out };
   }
-  async function exposure() {
-    const v = can("readiness:Run") ? { last: await api("/api/readiness/exposure", { method: "POST" }) } : await api("/api/readiness/exposure");
-    S.exp = { ...(S.exp || {}), configured: true, ...v, history: S.exp?.history || [] };
-    const x = v.last;
-    if (!x) return { score: null, why: "The exposure test hasn't run yet. Someone with permission to run the readiness score can start it." };
-    const out = [], leak = x.tables.filter((t) => t.state === "exposed" && t.personal?.length);
-    out.push(!leak.length ? f("ok", `None of ${x.counts.tables} tables gives personal data to the public key.`, "Rule 6(1)(b) · access control")
-      : f("bad", `${leak.length} table(s) give personal data to anyone with the public key: ${leak.slice(0, 4).map((t) => t.table).join(", ")}${leak.length > 4 ? "…" : ""}.`, "Rule 6(1)(b) · access control", "Open the Public exposure tab and apply the fix for each table."));
-    const open = x.tables.filter((t) => t.state === "exposed" && !t.personal?.length);
-    if (open.length) out.push(f("warn", `${open.length} table(s) are readable by the public but hold no personal data: ${open.slice(0, 4).map((t) => t.table).join(", ")}.`, "s.8(5)", "Fine for a public catalogue; otherwise lock them down too."));
-    for (const c of x.checks.filter((c) => !["ok", "info"].includes(c.severity))) out.push(f(c.severity === "high" ? "bad" : "warn", c.text, "Rule 6(1)", c.fix || ""));
-    if (x.checks.every((c) => ["ok", "info"].includes(c.severity))) out.push(f("ok", "Storage, sign-up and API settings show no public leaks.", "Rule 6(1)"));
-    return { score: x.score, findings: out };
-  }
   async function evidence() {
     if (!can("readiness:VerifyIntegrity") && !can("readiness:Read")) return { score: null, why: "Needs permission to see the evidence ledger." };
     const v = await api("/api/evidence"); S.ev = v;
@@ -145,20 +131,32 @@ const Readiness = (() => {
     top.slice(0, 3).forEach((g) => out.push(f("bad", g.title, g.ref, g.fix)));
     const med = d.gaps.filter((g) => g.severity === "medium");
     if (med.length) out.push(f("warn", `${med.length} medium gap(s): ${[...new Set(med.map((g) => g.title.replace(/^.*?: /, "")))].slice(0, 2).join("; ")}${med.length > 2 ? "…" : ""}`, "DPDP Act ss.5, 8", "Open Data map → Gaps."));
-    if (!d.gaps.length) out.push(f("ok", "Every personal data store has a purpose, a retention rule and no public access; every recipient has a contract.", "ss.5–8"));
+    if (!d.gaps.length) out.push(f("ok", "Every personal data store has a purpose and a retention rule; every recipient has a contract.", "ss.5–8"));
     return { score: d.score, findings: out };
   }
-  const AREAS = [["monitoring", "Security monitoring", monitoring], ["breach", "Breach readiness", breach], ["consent", "Consent & purpose", consent],
-    ["retention", "Retention", retention], ["access", "Access control", access], ["logging", "Logging coverage", logging],
-    ["exposure", "Public exposure", exposure], ["evidence", "Records & evidence", evidence], ["inventory", "Data inventory", inventory]];
+  // key, label, scoring function, law, the section that fixes it, its icon
+  const AREAS = [
+    ["monitoring", "Security monitoring", monitoring, "s.8(5) · Rule 6(1)(c)", "breach", "i-shield"],
+    ["breach", "Breach readiness", breach, "s.8(6) · Rule 7", "breach", "i-breach"],
+    ["consent", "Consent & purpose", consent, "ss.5–7", "consent", "i-consent"],
+    ["retention", "Retention", retention, "s.8(7) · Rule 8", "retention", "i-retention"],
+    ["access", "Access control", access, "s.8(5) · least privilege", "iam", "i-key"],
+    ["logging", "Logging coverage", logging, "Rule 6(1)(e)", "telemetry", "i-logs"],
+    ["evidence", "Records & evidence", evidence, "s.8(5) · Rule 6(1)(e)", "evidence", "i-ledger"],
+    ["inventory", "Data inventory", inventory, "s.8(1) · accountability", "datamap", "i-map"],
+  ];
+  const META = Object.fromEntries(AREAS.map(([k, l, , law, view, icon]) => [k, { label: l, law, view, icon }]));
+  const VIEW_NAME = { breach: "Breach Response", consent: "Consent & Purpose", retention: "Retention", iam: "Access (IAM)", telemetry: "Log Telemetry", evidence: "Evidence & audit", datamap: "Data map" };
+  const VERDICT = (s) => (s >= 85 ? "Well prepared" : s >= 70 ? "Mostly ready, a few gaps" : s >= 55 ? "Real gaps to close" : s >= 40 ? "Significant work needed" : "Not ready yet");
 
   async function run() {
-    S.busy = true; S.err = ""; render();
+    S.busy = true; S.err = ""; S.done = []; render();
     const areas = [];
     for (const [key, label, fn] of AREAS) {
-      S.step = label; render();
+      S.step = key; render();
       try { const r = await fn({ logs: true, shop: true }); areas.push({ key, label, score: r.score == null ? null : Math.round(r.score), findings: r.findings || [], why: r.why }); }
       catch (e) { areas.push({ key, label, score: null, findings: [], why: `Couldn't assess: ${e.message}` }); }
+      S.done.push(key);
     }
     const scored = areas.filter((a) => a.score != null), score = scored.length ? Math.round(scored.reduce((n, a) => n + a.score, 0) / scored.length) : 0;
     S.result = { score, grade: scored.length ? grade(score) : "–", areas, at: new Date().toISOString(), assessed: scored.length };
@@ -171,119 +169,148 @@ const Readiness = (() => {
   }
   async function loadHistory() { try { S.history = (await api("/api/readiness")).history || []; } catch { S.history = []; } }
 
-  function ring(score, g) {
-    const r = 54, c = 2 * Math.PI * r, off = c * (1 - score / 100);
-    return `<svg class="rd-ring g-${esc(g)}" viewBox="0 0 140 140" role="img" aria-label="Readiness ${score} out of 100, grade ${esc(g)}"><circle cx="70" cy="70" r="${r}" class="rd-track"/><circle cx="70" cy="70" r="${r}" class="rd-val" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 70 70)"/><text x="70" y="68" text-anchor="middle" class="rd-num">${score}</text><text x="70" y="90" text-anchor="middle" class="rd-of">of 100</text></svg>`;
+  /* ---------- drawing ---------- */
+  function ring(score, g, size = "lg") {
+    const big = size === "lg", r = big ? 58 : 20, w = big ? 12 : 5, box = big ? 140 : 52, c = 2 * Math.PI * r, off = c * (1 - (score || 0) / 100), mid = box / 2;
+    return `<svg class="rd2-ring ${size} g-${esc(g)}" viewBox="0 0 ${box} ${box}" role="img" aria-label="${score} out of 100"><circle cx="${mid}" cy="${mid}" r="${r}" class="rd2-track" stroke-width="${w}"/>
+      <circle cx="${mid}" cy="${mid}" r="${r}" class="rd2-val" stroke-width="${w}" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 ${mid} ${mid})" style="--c:${c.toFixed(1)}"/>
+      ${big ? `<text x="${mid}" y="${mid + 4}" text-anchor="middle" class="rd2-num">${score}</text><text x="${mid}" y="${mid + 26}" text-anchor="middle" class="rd2-of">of 100</text>` : `<text x="${mid}" y="${mid + 5}" text-anchor="middle" class="rd2-snum">${score}</text>`}</svg>`;
   }
-  function trend() {
-    const h = S.history.slice(-12);
+  // Score history with the grade bands behind it.
+  function history() {
+    const h = S.history.slice(-20);
     if (h.length < 2) return "";
-    const W = 260, H = 60, X = (i) => 6 + (i * (W - 12)) / (h.length - 1), Y = (v) => H - 6 - (v / 100) * (H - 12);
-    return `<div class="rd-trend"><span class="muted">Score history</span><svg viewBox="0 0 ${W} ${H}"><path d="${h.map((e, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(e.score).toFixed(1)}`).join("")}" class="rd-tline"/>${h.map((e, i) => `<circle cx="${X(i)}" cy="${Y(e.score)}" r="3" class="rd-tdot"><title>${esc(dt(e.at))}: ${e.score} (${esc(e.grade)})</title></circle>`).join("")}</svg></div>`;
+    const W = 640, H = 170, L = 34, R = 10, T = 10, B = 24, X = (i) => L + (i * (W - L - R)) / (h.length - 1), Y = (v) => T + (1 - v / 100) * (H - T - B);
+    const bands = [[85, 100, "A"], [70, 85, "B"], [55, 70, "C"], [40, 55, "D"], [0, 40, "E"]];
+    const line = h.map((e, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(e.score).toFixed(1)}`).join("");
+    const area = `${line}L${X(h.length - 1).toFixed(1)},${Y(0)}L${X(0).toFixed(1)},${Y(0)}Z`;
+    const lab = (e) => new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" }).format(new Date(e.at));
+    return `<section class="panel rd2-card"><div class="rd2-ch"><h3>Score history</h3><span class="muted">last ${h.length} runs · shaded by grade</span></div>
+      <svg class="rd2-hist" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        ${bands.map(([lo, hi, g]) => `<rect x="${L}" y="${Y(hi)}" width="${W - L - R}" height="${Y(lo) - Y(hi)}" class="rd2-band g-${g}"/><text x="${L - 8}" y="${(Y(hi) + Y(lo)) / 2 + 4}" text-anchor="end" class="rd2-bl">${g}</text>`).join("")}
+        <path d="${area}" class="rd2-harea"/><path d="${line}" class="rd2-hline"/>
+        ${h.map((e, i) => `<circle cx="${X(i)}" cy="${Y(e.score)}" r="4" class="rd2-hdot"><title>${esc(dt(e.at))}: ${e.score} (${esc(e.grade)}) by ${esc(e.by || "")}</title></circle>`).join("")}
+        <text x="${X(0)}" y="${H - 6}" class="rd2-bl">${esc(lab(h[0]))}</text><text x="${X(h.length - 1)}" y="${H - 6}" text-anchor="end" class="rd2-bl">${esc(lab(h[h.length - 1]))}</text>
+      </svg></section>`;
   }
-  const tabs = () => `<div class="cp-tabs us-tabs" role="tablist">${[["score", "Readiness score"], ["exposure", "Public exposure"]].map(([k, l]) => `<button role="tab" class="${S.tab === k ? "on" : ""}" aria-selected="${S.tab === k}" data-rtab="${k}">${esc(l)}</button>`).join("")}</div>`;
-  const SEV = { critical: "Critical", high: "High", medium: "Medium", low: "Low", info: "Info", ok: "OK" };
-  const KIND_LVL = { critical: "bad", high: "bad", medium: "warn", low: "warn", info: "ok", ok: "ok" };
-  async function loadExposure() { try { S.exp = await api("/api/readiness/exposure"); } catch (e) { S.expErr = e.message; } }
-  async function runExposure() {
-    S.expBusy = true; S.expErr = ""; render();
-    try { const last = await api("/api/readiness/exposure", { method: "POST" }); await loadExposure(); S.exp.last = last; }
-    catch (e) { S.expErr = e.message; }
-    S.expBusy = false; render();
+
+  /* ---------- page parts ---------- */
+  // Every open finding, with the most the overall score could rise if it were fixed.
+  function fixes(r) {
+    const n = r.assessed || 1, out = [];
+    for (const a of r.areas) {
+      if (a.score == null) continue;
+      const open = a.findings.filter((x) => x.level !== "ok");
+      open.forEach((x) => out.push({ ...x, area: a.key, gain: (100 - a.score) / n / open.length }));
+    }
+    return out.sort((p, q) => (q.level === "bad") - (p.level === "bad") || q.gain - p.gain);   // problems first, then the biggest gain
   }
-  function exposureHtml() {
-    const v = S.exp || {}, x = v.last;
-    const runBtn = can("readiness:Run") ? `<button class="btn primary" data-act="exp-run" ${S.expBusy ? "disabled" : ""}>${S.expBusy ? "Testing…" : x ? "Run the test again" : "Run the exposure test"}</button>` : "";
-    const how = `<p class="muted">The test reads ${esc(ME?.client?.name ? ME.client.name + "’s" : "your")} customer database the way anyone on the internet can: with the public key the website already ships. It only reads, at most one row per table, and keeps only table and column names, never the values. It runs by itself once a day after the first run.</p>`;
-    if (v.configured === false) return `<div class="panel cp-empty"><h3>Public exposure test</h3><p>Add the shop's public (anon) key to the server's settings as <code>SHOP_SUPABASE_ANON_KEY</code> to turn this on.</p></div>`;
-    if (S.expBusy && !x) return `<div class="panel cp-empty"><h3>Testing what the public can read…</h3><p>Trying every table with the public key.</p></div>`;
-    if (!x) return `<div class="panel cp-empty rd-empty"><h3>What can anyone on the internet read?</h3>${how}${S.expErr ? `<p class="cp-red">${esc(S.expErr)}</p>` : ""}${runBtn}</div>`;
-    const c = x.counts, g = grade(x.score), leak = x.tables.filter((t) => t.state === "exposed"), safe = x.tables.filter((t) => t.state !== "exposed");
-    const sevRank = { critical: 3, high: 2, medium: 1, info: 0 };
-    leak.sort((a, b) => (sevRank[b.severity] || 0) - (sevRank[a.severity] || 0));
-    const state = (t) => t.state === "blocked" ? "Blocked for the public" : t.state === "protected" ? "Protected (rows hidden by policy)" : t.state === "empty" ? "Readable, but empty now" : t.state === "error" ? `Couldn't test (${esc(t.detail || "")})` : "";
-    const hist = (v.history || []).slice(-12);
-    return `
-      <section class="panel rd-hero">
-        ${ring(x.score, g)}
-        <div class="rd-sum">
-          <span class="us-plan">Rule 6 · reasonable security safeguards</span>
-          <h3>${c.personal ? `${c.personal} table(s) leak personal data to the public` : c.exposed ? "No personal data is public; some tables are readable" : "Nothing in the customer database is readable by the public"}</h3>
-          <p class="muted">Tested ${esc(dt(x.at))} by ${esc(x.by)} · ${c.tables} tables in ${x.seconds}s.</p>
-          ${S.expErr ? `<p class="cp-red">${esc(S.expErr)}</p>` : ""}
-          ${x.new_exposures?.length ? `<p class="cp-red"><b>New since the last test:</b> ${x.new_exposures.map(esc).join(", ")}</p>` : ""}
-          <div class="rd-acts">${runBtn}<button class="btn ghost ai-ask" data-ask-ai="readiness">✦ Ask AI</button></div>
+  const pts = (g) => (g >= 0.95 ? `+${Math.round(g)}` : g > 0.05 ? `+${g.toFixed(1)}` : "");
+
+  function hero(r, prev) {
+    const delta = prev && r.assessed ? r.score - prev.score : null, counts = { bad: 0, warn: 0, ok: 0 };
+    r.areas.forEach((a) => (Array.isArray(a.findings) ? a.findings : []).forEach((x) => (counts[x.level] = (counts[x.level] || 0) + 1)));
+    return `<section class="panel dm-hero rd2-hero g-${esc(r.grade)}">
+      <div class="dm-htext">
+        <div class="dm-erow"><span class="dm-eyebrow">DPDP Act 2023 · DPDP Rules 2025</span><span class="rd2-gpill g-${esc(r.grade)}">Grade ${esc(r.grade)}</span></div>
+        <h2>${r.assessed ? esc(VERDICT(r.score)) : "Not enough data to score yet"}</h2>
+        <p class="muted">${r.assessed} of ${r.areas.length} areas assessed ${r.at ? `· checked ${esc(dt(r.at))}` : ""}. Each finding cites the Act or the Rules and says how to fix it. An aid for your review, not legal advice.</p>
+        ${S.err ? `<p class="cp-red">${esc(S.err)}</p>` : ""}
+        ${r.findings !== false ? `<div class="rd2-counts"><span class="bad"><i>✕</i>${counts.bad} to fix</span><span class="warn"><i>!</i>${counts.warn} to improve</span><span class="ok"><i>✓</i>${counts.ok} passing</span></div>` : ""}
+        <div class="dm-hacts">
+          ${can("readiness:Run") ? `<button class="btn primary" data-act="run">${r.findings === false ? "Run the check" : "Run again"}</button>` : ""}
+          ${r.findings !== false ? `<button class="btn ghost" data-act="print">Print / save as PDF</button><button class="btn ghost ai-ask" data-ask-ai="readiness">✦ Ask AI</button>` : ""}
         </div>
-        ${hist.length > 1 ? `<div class="rd-trend"><span class="muted">Exposure score history</span><svg viewBox="0 0 260 60">${(() => { const X = (i) => 6 + (i * 248) / (hist.length - 1), Y = (s) => 54 - (s / 100) * 48; return `<path class="rd-tline" d="${hist.map((e, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(e.score).toFixed(1)}`).join("")}"/>${hist.map((e, i) => `<circle class="rd-tdot" cx="${X(i)}" cy="${Y(e.score)}" r="3"><title>${esc(dt(e.at))}: ${e.score}</title></circle>`).join("")}`; })()}</svg></div>` : ""}
-      </section>
-      <div class="us-cards">
-        <div class="panel us-card ex-card"><span class="us-clabel">Tables tested</span><b>${c.tables}</b></div>
-        <div class="panel us-card ex-card"><span class="us-clabel">Readable by the public</span><b class="${c.exposed ? "us-amber" : ""}">${c.exposed}</b></div>
-        <div class="panel us-card ex-card"><span class="us-clabel">With personal data</span><b class="${c.personal ? "us-red" : ""}">${c.personal}</b></div>
-        <div class="panel us-card ex-card"><span class="us-clabel">Blocked or protected</span><b>${c.blocked}</b></div>
       </div>
-      ${leak.length ? `<section class="panel ex-sec"><h3>Readable with the public key</h3><div class="ex-list">${leak.map((t) => `
-        <div class="ex-row">
-          <div class="ex-head"><b class="ex-t">${esc(t.table)}</b><span class="ex-sev s-${esc(t.personal?.length ? t.severity : "info")}">${t.personal?.length ? SEV[t.severity] : "No personal data"}</span>
-            <span class="muted">${t.rows_visible == null ? "rows readable" : `${num(t.rows_visible)} row(s) readable`} · ${t.columns} columns</span></div>
-          ${t.personal?.length ? `<div class="ex-cols">${t.personal.map((p) => `<span class="ex-chip s-${esc(p.sensitivity)}" title="${esc(p.kind)}">${esc(p.column)} <small>${esc(p.kind)}</small></span>`).join("")}</div>` : ""}
-          ${t.fix ? `<details class="ex-fix"><summary>How to fix (SQL for the shop's developer)</summary><pre>${esc(t.fix)}</pre><button class="btn ghost sm" data-act="exp-copy" data-sql="${esc(t.fix)}">Copy SQL</button></details>` : ""}
-        </div>`).join("")}</div></section>` : ""}
-      <section class="panel ex-sec"><h3>Settings checks</h3><ul class="rd-finds">${x.checks.map((k) => `<li class="${KIND_LVL[k.severity] || "ok"}"><i>${KIND_LVL[k.severity] === "ok" ? (k.severity === "info" ? "i" : "✓") : KIND_LVL[k.severity] === "warn" ? "!" : "✕"}</i><div><b>${esc(k.text)}</b>${k.fix ? (k.fix.includes("\n") || /^revoke|^update/.test(k.fix) ? `<details class="ex-fix"><summary>How to fix</summary><pre>${esc(k.fix)}</pre></details>` : `<span>${esc(k.fix)}</span>`) : ""}<small>${esc(SEV[k.severity] || "")}</small></div></li>`).join("")}</ul></section>
-      <section class="panel ex-sec"><h3>Tables that passed <span class="muted">(${safe.length})</span></h3><div class="ex-pass">${safe.map((t) => `<span class="ex-chip s-ok" title="${esc(state(t))}">${esc(t.table)} <small>${esc(state(t))}</small></span>`).join("")}</div></section>
-      <section class="panel ex-sec ex-note"><h3>How this works</h3>${how}<p class="muted">Not tested, on purpose: writing to tables and running database functions, because a test must never change the shop's data. It also can't see what one signed-in customer can read of another's data; that needs a test account. Fixes are shown for the shop's developer and never run from here.</p></section>`;
+      <div class="rd2-score">
+        ${r.assessed ? ring(r.score, r.grade) : `<div class="rd-na">–</div>`}
+        ${delta != null ? `<span class="rd2-delta ${delta > 0 ? "up" : delta < 0 ? "down" : ""}">${delta > 0 ? "▲" : delta < 0 ? "▼" : "•"} ${delta > 0 ? "+" : ""}${delta} since ${esc(dt(prev.at))}</span>` : `<span class="muted rd2-delta">first run</span>`}
+      </div>
+    </section>`;
   }
+
+  function fixFirst(r) {
+    const list = fixes(r).slice(0, 6);
+    if (!list.length) return `<section class="panel rd2-card rd2-clear"><span class="rd2-big">✓</span><div><h3>Nothing to fix</h3><p class="muted">Every check passed. Run it again after big changes, or monthly.</p></div></section>`;
+    return `<section class="panel rd2-card"><div class="rd2-ch"><h3>Fix these first</h3><span class="muted">ordered by severity and by how much each could raise your score</span></div>
+      <ol class="rd2-fixes">${list.map((x, i) => { const m = META[x.area]; return `<li class="${x.level}">
+        <span class="rd2-fi"><svg><use href="#${m.icon}"/></svg></span>
+        <div class="rd2-ft"><b>${esc(x.text)}</b>${x.fix ? `<span>${esc(x.fix)}</span>` : ""}<small>${esc(m.label)} · ${esc(x.ref)}</small></div>
+        <div class="rd2-fa">${pts(x.gain) ? `<span class="rd2-gain" title="Most the overall score could rise">${pts(x.gain)} pts</span>` : ""}
+          <button class="btn ghost sm" data-act="go" data-view="${m.view}">Open ${esc(VIEW_NAME[m.view])}</button>
+          <button class="btn ghost sm ai-ask" data-ask-ai="readiness:fix:${i}">✦ Ask AI</button></div></li>`; }).join("")}</ol></section>`;
+  }
+
+  function areaCard(a) {
+    const m = META[a.key] || { label: a.label, law: "", view: null, icon: "i-gauge" }, g = a.score == null ? "na" : grade(a.score);
+    const list = Array.isArray(a.findings) ? a.findings : [], bad = list.filter((x) => x.level !== "ok"), good = list.filter((x) => x.level === "ok");
+    const li = (x) => `<li class="${x.level}"><i>${x.level === "ok" ? "✓" : x.level === "warn" ? "!" : "✕"}</i><div><b>${esc(x.text)}</b>${x.fix ? `<span>${esc(x.fix)}</span>` : ""}<small>${esc(x.ref)}</small></div></li>`;
+    const open = S.open.has(a.key);
+    return `<section class="panel rd2-area g-${g}">
+      <div class="rd2-ahead">
+        <span class="rd2-aicon"><svg><use href="#${m.icon}"/></svg></span>
+        <div class="rd2-at"><h3>${esc(m.label)}</h3><small class="muted">${esc(m.law)}</small></div>
+        ${a.score == null ? `<span class="rd-pill na">Not assessed</span>` : ring(a.score, g, "sm")}
+      </div>
+      ${a.score == null ? `<p class="muted rd2-why">${esc(a.why || "")}</p>` : Array.isArray(a.findings) ? `
+        <div class="rd2-astat">${bad.length ? `<span class="${bad.some((x) => x.level === "bad") ? "bad" : "warn"}">${bad.length} to work on</span>` : `<span class="ok">All checks passed</span>`}<span class="muted">${good.length} passed</span></div>
+        ${bad.length ? `<ul class="rd-finds">${bad.map(li).join("")}</ul>` : ""}
+        ${good.length ? `<button class="rd2-more" data-act="toggle" data-area="${esc(a.key)}">${open ? "Hide" : "Show"} ${good.length} passed check${good.length > 1 ? "s" : ""}</button>${open ? `<ul class="rd-finds rd2-passed">${good.map(li).join("")}</ul>` : ""}` : ""}`
+        : `<p class="muted rd2-why">${num(a.findings || 0)} finding(s) last time. Run again to see them.</p>`}
+      ${m.view ? `<button class="rd2-link" data-act="go" data-view="${m.view}">Open ${esc(VIEW_NAME[m.view])} →</button>` : ""}
+    </section>`;
+  }
+
+  function running() {
+    return `<section class="panel dm-hero rd2-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Act 2023 · DPDP Rules 2025</span><span class="dm-live">Checking</span></div>
+      <h2>Checking your compliance…</h2><p class="muted">Each area reads live data from its own section. This takes a few seconds.</p>
+      <ol class="rd2-steps">${AREAS.map(([k, l, , , , icon]) => `<li class="${S.done.includes(k) ? "done" : S.step === k ? "now" : ""}"><span><svg><use href="#${icon}"/></svg></span>${esc(l)}<i>${S.done.includes(k) ? "✓" : S.step === k ? "…" : ""}</i></li>`).join("")}</ol></div></section>`;
+  }
+
   function render() {
     const body = $("rdBody"); if (!body) return;
-    if (S.tab === "exposure") { body.innerHTML = tabs() + exposureHtml(); return; }
-    const r = S.result;
-    if (S.busy) { body.innerHTML = tabs() + `<div class="panel cp-empty"><h3>Checking your compliance…</h3><p>${esc(S.step)}</p></div>`; return; }
+    if (S.busy) { body.innerHTML = running(); return; }
+    let r = S.result, prev = S.history.length > 1 ? S.history[S.history.length - 2] : null;
     if (!r) {
       const last = S.history.slice(-1)[0];
-      body.innerHTML = tabs() + `<div class="panel cp-empty rd-empty"><h3>DPDP readiness score</h3><p>${last ? `Last score <b>${last.score}</b> (${esc(last.grade)}) on ${esc(dt(last.at))}. Run it again to see the findings.` : "See where your company stands on the DPDP Act in about a minute."}</p>
-        ${can("readiness:Run") ? `<button class="btn primary" data-act="run">${last ? "Run again" : "Run my readiness check"}</button>` : ""}${trend()}</div>`;
+      prev = S.history.length > 1 ? S.history[S.history.length - 2] : null;
+      if (!last) {
+        body.innerHTML = `<section class="panel dm-hero rd2-hero"><div class="dm-htext"><div class="dm-erow"><span class="dm-eyebrow">DPDP Act 2023 · DPDP Rules 2025</span></div>
+          <h2>How ready are you for a DPDP audit?</h2><p class="muted">One score across ${AREAS.length} areas, built from what NigraniAI already measures. Every finding cites the law and says how to fix it.</p>
+          <div class="rd2-chips">${AREAS.map(([, l, , , , icon]) => `<span><svg><use href="#${icon}"/></svg>${esc(l)}</span>`).join("")}</div>
+          <div class="dm-hacts">${can("readiness:Run") ? `<button class="btn primary" data-act="run">Run my readiness check</button>` : `<p class="muted">Ask someone with permission to run it.</p>`}</div></div></section>`;
+        return;
+      }
+      // The last saved result: scores only (findings are not stored), until it is run again.
+      r = { ...last, findings: false, assessed: (last.areas || []).filter((a) => a.score != null).length,
+        areas: AREAS.map(([k, l]) => { const a = (last.areas || []).find((x) => x.key === k); return { key: k, label: l, score: a ? a.score : null, findings: a ? a.findings : 0, why: a ? "" : "Not part of that run." }; }) };
+      body.innerHTML = hero(r, prev) + `<p class="rd2-note muted">Showing the last saved score. Run it again to see every finding and what to fix first.</p><div class="rd2-areas">${r.areas.map(areaCard).join("")}</div>${history()}`;
       return;
     }
-    body.innerHTML = tabs() + `
-      <section class="panel rd-hero">
-        ${r.assessed ? ring(r.score, r.grade) : `<div class="rd-na">Not enough data to score yet.</div>`}
-        <div class="rd-sum">
-          <span class="us-plan">${esc(ME?.client?.name || "")}</span>
-          <h3>${r.assessed ? `Grade ${esc(r.grade)}: ${r.score >= 85 ? "well prepared" : r.score >= 70 ? "mostly ready, a few gaps" : r.score >= 55 ? "real gaps to close" : "significant work needed"}` : "Not enough data to score yet"}</h3>
-          <p class="muted">${esc(dt(r.at))} · ${r.assessed} of ${r.areas.length} areas assessed. Each finding cites the DPDP Act 2023 or the DPDP Rules 2025. This is an aid for your review, not legal advice.</p>
-          ${S.err ? `<p class="cp-red">${esc(S.err)}</p>` : ""}
-          <div class="rd-acts"><button class="btn primary" data-act="run">Run again</button><button class="btn ghost" data-act="print">Print / save as PDF</button><button class="btn ghost ai-ask" data-ask-ai="readiness">✦ Ask AI</button></div>
-        </div>
-        ${trend()}
-      </section>
-      <div class="rd-areas">${r.areas.map((a) => `<section class="panel rd-area ${a.score == null ? "na" : `g-${grade(a.score)}`}">
-        <div class="rd-ahead"><h3>${esc(a.label)}</h3>${a.score == null ? `<span class="rd-pill na">Not assessed</span>` : `<span class="rd-pill g-${grade(a.score)}">${a.score}</span>`}</div>
-        ${a.score != null ? `<span class="rd-bar"><i style="width:${a.score}%"></i></span>` : ""}
-        ${a.score == null ? `<p class="muted">${esc(a.why || "")}</p>` : `<ul class="rd-finds">${a.findings.map((x) => `<li class="${x.level}"><i>${x.level === "ok" ? "✓" : x.level === "warn" ? "!" : "✕"}</i><div><b>${esc(x.text)}</b>${x.fix ? `<span>${esc(x.fix)}</span>` : ""}<small>${esc(x.ref)}</small></div></li>`).join("")}</ul>`}
-      </section>`).join("")}</div>`;
+    body.innerHTML = hero(r, prev) + fixFirst(r) + `<div class="rd2-ch rd2-sect"><h3>All areas</h3><span class="muted">${r.assessed} assessed · the overall score is their average</span></div><div class="rd2-areas">${r.areas.map(areaCard).join("")}</div>` + history();
   }
   function bind() {
     $("rdBody").addEventListener("click", (e) => {
-      const t = e.target.closest("[data-rtab]");
-      if (t) { S.tab = t.dataset.rtab; render(); if (S.tab === "exposure" && !S.exp) loadExposure().then(render); return; }
       const b = e.target.closest("[data-act]"); if (!b) return;
-      if (b.dataset.act === "exp-run") return runExposure();
-      if (b.dataset.act === "exp-copy") { navigator.clipboard?.writeText(b.dataset.sql).then(() => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy SQL"), 1500); }); return; }
       if (b.dataset.act === "run") return run();
       if (b.dataset.act === "print") return window.print();
+      if (b.dataset.act === "go") return show(b.dataset.view);
+      if (b.dataset.act === "toggle") { const k = b.dataset.area; S.open.has(k) ? S.open.delete(k) : S.open.add(k); render(); }
     });
   }
   return {
     async show() { if (!S.started) { S.started = true; bind(); } if (!S.history.length) await loadHistory(); render(); },
     async runAndOpen() { show("readiness"); await run(); },
-    aiItem() {
-      const r = S.result, x = S.exp?.last;
-      if (!r && x) return { name: `Public exposure test ${x.score}/100`, question: "Explain my public exposure test: what is at risk, what to fix first, and how.",
-        text: JSON.stringify({ score: x.score, at: x.at, counts: x.counts, readable_tables: x.tables.filter((t) => t.state === "exposed").map((t) => ({ table: t.table, severity: t.severity, personal_columns: (t.personal || []).map((p) => `${p.column} (${p.kind})`) })), checks: x.checks.map((c) => `${c.severity}: ${c.text}`) }, null, 1) };
-      if (!r) return null;
-      return { name: `DPDP readiness ${r.score}/100 (${r.grade})`, question: "Explain my DPDP readiness score: what matters most, what to fix first, and how to raise the score.",
-        text: JSON.stringify({ public_exposure_test: S.exp?.last ? { score: S.exp.last.score, at: S.exp.last.at, readable_tables: S.exp.last.tables.filter((t) => t.state === "exposed").map((t) => ({ table: t.table, severity: t.severity, personal_columns: (t.personal || []).map((p) => `${p.column} (${p.kind})`) })), checks: S.exp.last.checks.map((c) => `${c.severity}: ${c.text}`) } : "not run",
-          score: r.score, grade: r.grade, areas: r.areas.map((a) => ({ area: a.label, score: a.score, not_assessed_because: a.why, findings: a.findings.map((x) => `${x.level}: ${x.text} [${x.ref}]${x.fix ? ` Fix: ${x.fix}` : ""}`) })) }, null, 1) };
+    aiItem(arg = "") {
+      const r = S.result; if (!r) return null;
+      const all = { score: r.score, grade: r.grade, areas: r.areas.map((a) => ({ area: a.label, score: a.score, not_assessed_because: a.why, findings: a.findings.map((x) => `${x.level}: ${x.text} [${x.ref}]${x.fix ? ` Fix: ${x.fix}` : ""}`) })) };
+      const [what, i] = arg.split(":");
+      if (what === "fix") {
+        const x = fixes(r).slice(0, 6)[Number(i)]; if (!x) return null;
+        return { name: `Readiness fix: ${META[x.area].label}`, question: `How exactly do I fix this, step by step, and why does the DPDP law require it? "${x.text}"`,
+          text: JSON.stringify({ finding: { area: META[x.area].label, level: x.level, text: x.text, law: x.ref, suggested_fix: x.fix, could_raise_score_by: Number(x.gain.toFixed(1)) }, readiness: all }, null, 1) };
+      }
+      return { name: `DPDP readiness ${r.score}/100 (${r.grade})`, question: "Explain my DPDP readiness score: what matters most, what to fix first, and how to raise the score.", text: JSON.stringify(all, null, 1) };
     },
   };
 })();

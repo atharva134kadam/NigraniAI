@@ -67,7 +67,7 @@ _Status as of 18 Oct 2026._
 | **Breach Response** | 7 editable detectors + a live ML anomaly model (Isolation Forest), signal triage, breach register, Rule 7 / CERT-In clocks and notice drafts |
 | **AI Assistant** | Chat grounded in the dashboard's own numbers (Groq, `openai/gpt-oss-120b`): explains, investigates, gives fixes and prevention |
 | **Data map** | Live map of personal data: which tables hold it, which services use it, for which purposes, who receives it; inventory, record of processing (CSV / PDF) and gap analysis |
-| **Readiness score** | 0–100 DPDP readiness score and grade from nine areas, each finding citing the law and giving a fix; includes a **Public exposure** test of what anyone can read from the shop database |
+| **Readiness score** | 0–100 DPDP readiness score and grade from eight areas, each finding citing the law and giving a fix; open findings ranked by how much each could raise the score, with links to the section that fixes them and ✦ Ask AI on each |
 | **Evidence & audit** | Its own section: tamper-evident records (hash chain, daily seals), a visual chain timeline, protected-record list, evidence packs for auditors, pack checking (drag and drop), and ✦ Ask AI on the status, any problem or a pack check |
 | **Access management** | AWS IAM-style for ShopSmart's staff: 37 actions, JSON policies with Allow/Deny, wildcards and conditions, groups, simulator |
 | **Usage & plan** | Usage meters (log lines, AI, lookups, users…), what the plan includes and what's left, per-person caps, alerts |
@@ -421,7 +421,6 @@ A 0–100 score and grade (A ≥ 85, B ≥ 70, C ≥ 55, D ≥ 40, else E), the 
 | Retention | records past deadline, overdue erasures, rule conflicts | s.8(7), Rule 8 |
 | Access control | deny by default, people with near-full access, unused accounts | s.8(5) |
 | Logging coverage | services logging, volume, masking, error rate | Rule 6(1)(c)–(e) |
-| Public exposure | the exposure test below: tables leaking personal data to the public key, risky settings | Rule 6(1)(b), s.8(5) |
 | Records & evidence | ledger intact (60), no rule deletes logs before a year (30), daily seals made (10) | s.8(5), Rule 6(1)(e) |
 | Data inventory | the Data map's health score and its critical/high gaps | ss.4–8, s.16 |
 
@@ -429,28 +428,18 @@ Every finding cites the law and gives a fix. Areas the person isn't allowed to r
 assessed" and don't count. Results are saved with a history (trend line), printable to PDF and
 explainable with Ask AI.
 
-**Public exposure tab.** The Readiness page has two tabs: *Readiness score* and *Public exposure*.
-The exposure test reads the shop's database the way anyone on the internet can, with the public
-anon key the shop's website already ships (`SHOP_SUPABASE_ANON_KEY`, server-side only):
+**Page layout.** A header with the score ring, the grade, the change since the last run and the
+counts of findings (to fix / to improve / passing); **Fix these first**, the six most important open
+findings, problems before warnings, then by the most each could add to the overall score (an area's
+missing points ÷ areas assessed, shared among its open findings), each with *Open <section>* and
+✦ Ask AI; one card per area with its own score ring, the findings to work on, the passed checks folded
+away and a link to its section; and the score history shaded by grade. Before a new run it shows the
+last saved scores. While running, each area is ticked off as it is checked; areas wait for their
+section's data if it is still loading, so a run right after sign-in scores correctly.
 
-| Check | How | Finding |
-|---|---|---|
-| Readable tables | `GET /<table>?select=*&limit=1` with the anon key, plus the visible row count | exposed / blocked / protected (rows exist but policies hide them) / empty |
-| Personal columns | column names of an exposed table matched against name patterns (contact, address, credentials, financial/ID, name, birth, network, free text, person link) | Critical / High / Medium per table |
-| API schema | whether the anon key can list tables and columns | Low |
-| Sign-up settings | public auth settings: auto-confirm, anonymous sign-ins, open sign-up | Medium / Info |
-| Storage | public buckets (service key, list only); names like invoice/kyc/user → High | High / Low |
-| Database functions | listed, **never called**; a `revoke execute … from anon` snippet is offered | Info |
-
-Safety: GET only, at most one row per table, values dropped at once; only table names, column names
-and counts are stored (`data/exposure.json`, last result + 30-run history). Writes are never
-attempted. Each exposed table gets fix SQL for the shop's developer (enable RLS, revoke anon, an
-own-rows policy when a `user_id`/`customer_id` column exists); it is shown and copied, never run.
-Score: 100 minus 30/18/8 per Critical/High/Medium table and 15/6/3 per High/Medium/Low setting.
-The test runs with *Run my readiness check* (it feeds the Public exposure area), from its own tab,
-and by itself once a day after the first run; new leaks since the last run are highlighted. Each
-run is metered (`exposure.tests`, not billed) and audited. Not covered: what one signed-in customer
-can read of another's data (needs a test account).
+*Public exposure (removed 20 Oct 2026).* The test of what the shop's public key could read is gone
+from the Readiness page, the score, the data map, evidence packs and the provider reports. Its last
+results stay in `data/exposure.json`, still fingerprinted in the ledger, as part of the evidence.
 
 **Evidence & audit section** (`frontend/evidence.js`; in the sidebar for `readiness:Read`, `readiness:VerifyIntegrity` or
 `readiness:ExportEvidence`). Tabs: Overview (integrity checks, protected records with their last change,
@@ -463,7 +452,7 @@ Makes the system's own records tamper-evident, so ShopSmart can show an auditor 
 nothing was altered after the fact.
 
 - **Ledger** (`data/ledger.jsonl`): one entry per activity-log event and per change to a record file
-  (`policy`, `retention`, `breach`, `incidents`, `iam`, `plan`, `billing`, `readiness`, `exposure`
+  (`policy`, `retention`, `breach`, `incidents`, `iam`, `plan`, `billing`, `readiness`, `exposure` (archived)
   and every saved version in `history/`, `retention_history/`, `breach_history/`). Each entry holds
   the record's SHA-256 and the previous entry's hash, so editing, deleting or reordering anything
   breaks the chain from that point. The first entry (genesis) fingerprints everything that existed
@@ -480,7 +469,7 @@ nothing was altered after the fact.
   logs table. A rule that deletes logs before 365 days fails.
 - **Evidence pack** (`readiness:ExportEvidence`, metered as `evidence.packs`): for a date range (up to
   400 days) a JSON file plus a printable report with integrity and seals, log retention, readiness
-  history, the exposure test, the breach register (incidents without sample ids), policy versions,
+  history, the breach register (incidents without sample ids), policy versions,
   users and policies, and the activity log (up to 5,000 events). Its SHA-256 `fingerprint` is
   recorded in the ledger as an `export` entry.
 - **Check a pack** (`readiness:VerifyIntegrity`): upload a pack, and the system reports whether it's
@@ -502,7 +491,7 @@ personal data do you hold, where, why, and who gets it?* It is built by the serv
 | NigraniAI `database_logs`, last 30 days (user's token) | service → table flows: accesses, operations (SELECT/INSERT/…), personal-data flag |
 | NigraniAI `activity_logs` | personal values that appeared in log lines (masked), Razorpay events |
 | Consent policy + **Declarations** | which purposes each table and service serves |
-| Retention rules, exposure test | retention per table, public readability |
+| Retention rules | retention per table |
 | Settings | Supabase hosts, the AI provider |
 
 **Live.** With the Live switch on (top right), the page updates every 4 s: the service reads only
@@ -597,7 +586,6 @@ Decides, for every column of the customer database, whether it holds personal da
   - *government ID numbers stored*;
   - *unmasked personal data in stored logs*;
   - *columns to confirm*.
-- **Public exposure test:** a readable table is judged by its fused verdicts, so a public product catalogue isn't flagged.
 - **Log Telemetry:**
   - SQL column chips use the fused verdict (hover shows confidence and evidence; v2's "not personal" columns lose their chip);
   - masked tokens next to a timestamp become grey, struck-through *false alarm* chips. Such lines are tagged **NO PII** and no longer raise the *PII in log* flag;
@@ -868,7 +856,6 @@ except `/api/health` and the Razorpay webhook. The action in brackets is the IAM
 | GET | `/api/ai/status` | provider and model |
 | POST | `/api/ai/chat` | `question`, `context`, `history`, optional `attachment` → streamed text [ai:Ask] |
 | GET · POST | `/api/readiness` | score history · save a result [readiness:Read / readiness:Run] |
-| GET · POST | `/api/readiness/exposure` | last exposure test + history · run the test now [readiness:Read / readiness:Run] |
 | GET | `/api/evidence` | verify now + seals, exports, log retention [readiness:VerifyIntegrity / readiness:Read] |
 | GET | `/api/datamap` | last scan, history, declarations [datamap:Read / readiness:Read] |
 | POST | `/api/datamap/scan` | rebuild the data map [datamap:Scan] |
@@ -908,7 +895,6 @@ Common errors: 401 not signed in · 403 access denied · 409 stale edit · 429 u
 | `SUPABASE_DB_SCHEMA` | yes | `guardrail` |
 | `SUPABASE_DB_PASSWORD` | no | unused (left blank) |
 | `SHOP_SUPABASE_URL`, `SHOP_SUPABASE_SERVICE_KEY` | yes | the client's shop database, read-only |
-| `SHOP_SUPABASE_ANON_KEY` | for the exposure test | the shop's public key, used only to test what the public can read |
 | `CENTRAL_URL`, `CENTRAL_ANON_KEY`, `CENTRAL_CLIENT_KEY` | for provider reporting | the provider console's Supabase URL, its public key, and this copy's client key (from Provider Console → Add client). Unset = no reporting |
 | `CENTRAL_REPORT_MINUTES` | no (15) | how often this copy reports to the provider |
 | `CONSENT_PORT`, `CONSENT_ALLOWED_ORIGINS` | no | `8091` · browser origins (default `http://localhost:8090`) |
@@ -955,7 +941,7 @@ Everything the system stores is JSON in `consent_service/data/` (created on firs
 | `usage.json` | meters per person per IST day, alert log, log watermark |
 | `billing.json` | billing details, invoices, payments, refunds, invoice numbering, Razorpay orders, closed cycles, pending plan change, overdue state, `started_at` |
 | `readiness.json` | readiness score history |
-| `exposure.json` | last public exposure test (names and counts only) and 30-run history |
+| `exposure.json` | archived: results of the removed public exposure test (kept as evidence) |
 | `ledger.jsonl` | hash-chained evidence ledger (append-only; never edit) |
 | `datamap.json` | data map declarations, last scan (names and counts only) and 30-scan history |
 | `pii.json` | PII detection v2: per-column verdicts and evidence (no values), admin feedback |
@@ -1003,7 +989,7 @@ Every command is written to the activity log as `provider`.
 
 Each copy reports to the provider's own Supabase project (the **Provider Console**, a separate project in `~/Downloads/provider_console/`) so the provider can track every client together.
 
-- **What and when:** `central_report()` sends the plan and allowances, usage meters (this cycle and per day for 35 days), invoices (number, period, status, amounts, line descriptions), health (readiness, data map, public exposure, record integrity, open and overdue breach incidents) and service status. It goes 15 s after start, every `CENTRAL_REPORT_MINUTES`, and within about 5 s of any billing change (`write_billing` triggers it).
+- **What and when:** `central_report()` sends the plan and allowances, usage meters (this cycle and per day for 35 days), invoices (number, period, status, amounts, line descriptions), health (readiness, data map, record integrity, open and overdue breach incidents) and service status. It goes 15 s after start, every `CENTRAL_REPORT_MINUTES`, and within about 5 s of any billing change (`write_billing` triggers it).
 - **No personal data:** no customer records, log contents or emails, only counts, amounts and scores. A report is about 2–3 KB.
 - **How:** POST `/rest/v1/rpc/report_in` on the console project with the public anon key plus this copy's client key. The key only lets it call that function, and a wrong key gets "not authorised".
 - **Never blocks the copy:** a failure is logged, shown in System status (`provider_reporting`: last ok, last error, sent), and retried next interval.

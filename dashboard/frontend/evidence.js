@@ -1,6 +1,6 @@
 /* Evidence & audit: NigraniAI's tamper-evident records as their own section.
    Every change to the system's records (policies, retention, breach detectors and incidents, access,
-   plan, billing, readiness, exposure, data map, PII verdicts) and every activity record is fingerprinted
+   plan, billing, readiness, data map, PII verdicts) and every activity record is fingerprinted
    (SHA-256) into a hash chain on the server (data/ledger.jsonl), sealed daily after midnight IST.
    This page verifies the chain, shows it as a timeline, lists what is protected, builds evidence packs
    for an auditor, checks a pack someone sends back, and hands any of it to the AI assistant.
@@ -30,7 +30,7 @@ const Evidence = (() => {
   // Friendly names for the record files the ledger protects.
   const FILE_NAMES = { "policy.json": "Consent & purpose policy", "retention.json": "Retention schedule", "breach.json": "Breach detectors & clocks",
     "incidents.json": "Breach register", "iam.json": "Access policies & users", "plan.json": "Plan", "billing.json": "Billing & invoices",
-    "readiness.json": "Readiness scores", "exposure.json": "Public exposure tests", "datamap.json": "Data map & declarations", "pii.json": "PII detection verdicts" };
+    "readiness.json": "Readiness scores", "exposure.json": "Public exposure tests (archived)", "datamap.json": "Data map & declarations", "pii.json": "PII detection verdicts" };
   const HIST_NAMES = { history: "Consent policy", retention_history: "Retention schedule", breach_history: "Breach detectors" };
   function fileName(f) {
     if (FILE_NAMES[f]) return FILE_NAMES[f];
@@ -109,7 +109,7 @@ const Evidence = (() => {
 
   function packReport(pk) {
     const t = (rows, head) => `<table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c ?? "–")}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${head.length}">None in this period.</td></tr>`}</tbody></table>`;
-    const i = pk.integrity, lr = pk.log_retention || {}, ex = pk.exposure || {};
+    const i = pk.integrity, lr = pk.log_retention || {};
     return `<!doctype html><html><head><meta charset="utf-8"><title>DPDP evidence pack · ${esc(pk.client?.name)} · ${esc(pk.from)} to ${esc(pk.to)}</title><style>
       body{font:13px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#111;background:#fff;margin:32px auto;max-width:960px;padding:0 16px}
       h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:26px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px}
@@ -129,9 +129,6 @@ const Evidence = (() => {
       ${t((lr.rules || []).map((r) => [r.id, r.name, `${Math.round(r.keep_days)} days`, r.action || "minimum (legal hold)", r.enabled ? "on" : "off"]), ["Rule", "Name", "Keep", "Action", "State"])}
       <h2>DPDP readiness score</h2>
       ${t((pk.readiness || []).map((r) => [dt(r.at), r.by, `${r.score} (${r.grade})`, (r.areas || []).map((a) => `${a.label}: ${a.score ?? "n/a"}`).join(" · ")]), ["When", "By", "Score", "Areas"])}
-      <h2>Public exposure test (Rule 6(1)(b))</h2>
-      ${ex.last ? `<p>Last test ${esc(dt(ex.last.at))}: score <b>${ex.last.score}</b>; ${ex.last.counts?.tables} tables tested, ${ex.last.counts?.exposed} readable by the public, ${ex.last.counts?.personal} with personal data.</p>
-        ${t((ex.exposed_tables || []).map((x) => [x.table, x.severity, (x.personal || []).map((c) => c.column).join(", ") || "none", x.rows_visible]), ["Readable table", "Severity", "Personal columns", "Rows visible"])}` : "<p>Not run.</p>"}
       <h2>Breach register (s.8(6), Rule 7)</h2>
       <p class="muted">Clocks: ${esc(Object.entries(pk.breach?.clocks_hours || {}).map(([k, v]) => `${k.replace(/_/g, " ")} ${v} h`).join(" · "))}</p>
       ${t((pk.breach?.incidents || []).map((x) => [x.id, x.title, x.status, x.severity, dt(x.aware_at), Object.entries(x.obligations || {}).filter(([, v]) => v).map(([k, v]) => `${k}: ${dt(v?.at || v)}`).join("; ") || "–"]), ["Incident", "Title", "Status", "Severity", "Aware at", "Notifications"])}
@@ -250,7 +247,7 @@ const Evidence = (() => {
     const preset = (d, l) => `<button class="chip" data-act="preset" data-days="${d}">${l}</button>`;
     return `<div class="ev2-grid">
       ${can("readiness:ExportEvidence") ? `<section class="panel ev2-card"><div class="ev2-ch"><h3>Create an evidence pack</h3><span class="muted">for an auditor or the Data Protection Board</span></div>
-        <p class="muted">One file with integrity and seals, log retention, readiness scores, the exposure test, the breach register, policy versions, access and the activity log for the period. It downloads as JSON and opens as a printable report (save it as PDF). Its fingerprint is recorded in the chain.</p>
+        <p class="muted">One file with integrity and seals, log retention, readiness scores, the breach register, policy versions, access and the activity log for the period. It downloads as JSON and opens as a printable report (save it as PDF). Its fingerprint is recorded in the chain.</p>
         <div class="ev2-presets">${preset(30, "Last 30 days")}${preset(90, "Last 90 days")}${preset(365, "Last year")}</div>
         <div class="ev-form"><label>From <input type="date" id="evFrom" value="${isoDay(new Date(today.getTime() - 90 * 864e5))}" max="${isoDay(today)}"></label><label>To <input type="date" id="evTo" value="${isoDay(today)}" max="${isoDay(today)}"></label>
           <button class="btn primary" data-act="pack" ${S.busy ? "disabled" : ""}>${S.busy === "pack" ? "Building…" : "Create pack"}</button></div>

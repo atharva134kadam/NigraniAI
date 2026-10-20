@@ -210,7 +210,6 @@ const DataMap = (() => {
       head = `<span class="dm-kind">Data store</span><h3>${esc(t.table)}</h3><p class="muted">${t.rows == null ? "Row count unavailable" : `${num(t.rows)} rows`} · ${t.columns} columns · last used ${esc(ago(t.last_access))}</p>`;
       body = row("Categories", chips(t.categories, cchip)) + row("Purposes", chips(t.purposes, pchip))
         + row("Retention", t.retention.length ? t.retention.map((r) => `<div>${esc(r.id)} · ${esc(r.rule)}</div>`).join("") : `<span class="dm-warn">No retention rule</span>`)
-        + row("Public access", t.public === "exposed" ? `<span class="dm-bad">Readable with the public key</span>` : t.public ? `<span class="dm-good">Blocked for the public</span>` : `<span class="muted">Not tested yet (Readiness → Public exposure)</span>`)
         + `<h4>Personal fields</h4><div class="dm-cols">${t.personal.map((c) => `<span class="dm-col" style="--c:${catOf(c.category).color}"><code>${esc(c.column)}</code><small>${esc(c.kind)}</small></span>`).join("") || `<span class="muted">none</span>`}</div>`
         + `<h4>Used by</h4>${Object.keys(t.services).length ? Object.entries(t.services).sort((a, b) => b[1] - a[1]).map(([s, n]) => `<div class="dm-bar"><span>${esc(s)}</span><i style="width:${Math.max(4, (100 * n) / Math.max(...Object.values(t.services)))}%"></i><b>${num(n)}</b></div>`).join("") : `<p class="muted">No service used it in the last ${d.window_days} days.</p>`}`;
     } else if (k === "p") {
@@ -315,7 +314,6 @@ const DataMap = (() => {
         <dl class="dm-dl">
           <div><dt>Purposes</dt><dd>${t.purposes.length ? t.purposes.map((p) => `<span class="dm-pchip" style="--c:${purposeColor(p)}">${esc(purposeName(p))}</span>`).join("") : t.is_personal ? `<span class="dm-bad">None declared</span>` : `<span class="muted">–</span>`}</dd></div>
           <div><dt>Retention</dt><dd>${t.retention.length ? t.retention.map((r) => esc(r.rule)).join("<br>") : t.is_personal ? `<span class="dm-warn">No rule</span>` : `<span class="muted">–</span>`}</dd></div>
-          <div><dt>Public key</dt><dd>${t.public === "exposed" ? `<span class="dm-bad">Readable</span>` : t.public ? `<span class="dm-good">Blocked</span>` : `<span class="muted">Not tested</span>`}</dd></div>
           <div><dt>Last used</dt><dd>${esc(ago(t.last_access))}</dd></div>
         </dl>
         <div class="dm-used">${Object.entries(t.services).sort((a, b) => b[1] - a[1]).map(([s, n]) => {
@@ -681,7 +679,7 @@ const DataMap = (() => {
       const d = L(); if (!d) return null;
       return { name: `Data map (health ${d.score}/100, ${d.gaps.length} gaps)`, question: "Explain my data map: where personal data is at risk, which gaps matter most under the DPDP Act, and what to fix first.",
         text: JSON.stringify({ scanned: d.at, window_days: d.window_days, stats: d.stats,
-          tables: d.tables.filter((t) => t.is_personal).map((t) => ({ table: t.table, categories: t.categories, purposes: t.purposes.map(purposeName), retention: t.retention.map((r) => r.rule), public: t.public, used_by: t.services })),
+          tables: d.tables.filter((t) => t.is_personal).map((t) => ({ table: t.table, categories: t.categories, purposes: t.purposes.map(purposeName), retention: t.retention.map((r) => r.rule), used_by: t.services })),
           services: d.services.map((s) => ({ service: s.service, purposes: s.purposes.map(purposeName), personal_accesses: s.personal_accesses })),
           outside_purpose_flows: d.flows.filter((f) => f.personal && !f.in_purpose).map((f) => `${f.service} → ${f.table} (${f.count})`),
           processors: d.processors.map((p) => ({ name: p.name, role: p.role, dpa: p.dpa, country: p.country || "not recorded", purposes: (p.purposes || []).map(purposeName) })),

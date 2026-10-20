@@ -77,7 +77,6 @@ def load_env():
 load_env()
 SHOP_URL = os.getenv("SHOP_SUPABASE_URL", "").rstrip("/")
 SHOP_KEY = os.getenv("SHOP_SUPABASE_SERVICE_KEY", "")
-SHOP_ANON = os.getenv("SHOP_SUPABASE_ANON_KEY", "")           # the public key the shop's website ships; used only by the exposure test
 AUTH_URL = os.getenv("SUPABASE_URL", "").rstrip("/")          # NigraniAI project (dashboard login)
 AUTH_ANON = os.getenv("GUARDRAIL_ANON_KEY", "")
 GR_SCHEMA = os.getenv("SUPABASE_DB_SCHEMA", "guardrail")
@@ -2033,7 +2032,6 @@ METERS = {
     "ai.tokens": ("AI tokens", "tokens", "meter", True, 100000, "Tokens sent to and received from the AI provider (prompt + answer)"),
     "ai.attachments": ("Files attached to AI", "files", "meter", True, 1, "Files dropped into AI questions"),
     "lookups": ("Customer lookups", "lookups", "meter", True, 1, "Customer number lookups by full email or phone"),
-    "exposure.tests": ("Exposure tests", "tests", "meter", False, 1, "Public exposure tests run against the customer database (part of the readiness score)"),
     "evidence.packs": ("Evidence packs", "packs", "meter", False, 1, "Evidence packs exported for an auditor or the Board"),
     "pii.scans": ("PII detection scans", "scans", "meter", False, 1, "Sampled-value PII detection runs over the customer database"),
     "datamap.scans": ("Data map scans", "scans", "meter", False, 1, "Rebuilds of the data map from the database schema and logs"),
@@ -2362,13 +2360,8 @@ def save_readiness(body, actor):
     return entry
 
 
-# ---------------------------------------------------------------- public exposure test (data/exposure.json)
-# Reads the shop's database the way anyone on the internet can: with the public anon key that the
-# shop's website already ships. GET requests only, at most one row per table, and the values are
-# dropped at once: only table names, column names and counts are kept. Writes and database functions
-# are never attempted (they could change data), so they are reported for review, not tested.
-EXPOSURE_FILE = DATA / "exposure.json"
-_exposure_lock = threading.Lock()
+# ---------------------------------------------------------------- column classification (shared by the data map and PII detection)
+# Classifies shop columns as personal data from their names and their table (context-aware).
 PII_PATTERNS = [   # (kind, sensitivity, column-name pattern; matched on whole words of the name)
     ("credentials", "critical", r"(^|_)(password|passwd|pwd|secret|otp|api_?key|token|refresh_token|access_token)(_hash)?($|_)|_hash$"),
     ("financial / ID", "critical", r"(^|_)(card(_number)?|cvv|iban|account_(no|number)|ifsc|upi(_id)?|aadhaa?r|pan(_number)?|passport|gstin|payment_(reference|id)|provider_(order|payment)_id|refund_id)($|_)"),
@@ -2408,165 +2401,12 @@ def classify_columns(table, cols):
     return out
 
 
-def anon_get(path, params=None, accept=None, base="/rest/v1", count=False):
-    """GET with the public anon key only. Returns (status, json-or-None, headers)."""
-    url = f"{SHOP_URL}{base}{path}" + ("?" + urllib.parse.urlencode(params) if params else "")
-    headers = {"apikey": SHOP_ANON, "Authorization": f"Bearer {SHOP_ANON}"}
-    if accept:
-        headers["Accept"] = accept
-    if count:
-        headers["Prefer"] = "count=exact"
-    req = urllib.request.Request(url, headers=headers, method="GET")
-    try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return r.status, json.load(r), r.headers
-    except urllib.error.HTTPError as e:
-        try:
-            body = json.loads(e.read() or b"null")
-        except ValueError:
-            body = None
-        return e.code, body, e.headers
-
-
-def _range_total(h):
-    total = ((h or {}).get("Content-Range") or "*/0").split("/")[-1]
-    return int(total) if total.isdigit() else None
-
-
-def _fix_sql(table, cols):
-    owner = next((c for c in cols if re.search(r"(^|_)(user|customer|profile)_?id$", c.lower())), None)
-    sql = [f"-- {table}: stop the public (anon) key from reading it",
-           f"alter table public.{table} enable row level security;",
-           f"revoke select on public.{table} from anon;"]
-    if owner:
-        sql += [f"-- let each signed-in customer read only their own rows",
-                f"create policy \"{table}_own_rows\" on public.{table} for select to authenticated using (auth.uid() = {owner});"]
-    return "\n".join(sql)
-
-
-def _probe_table(table, cols_known):
-    st, body, h = anon_get(f"/{urllib.parse.quote(table)}", {"select": "*", "limit": "1"}, count=True)
-    if st in (401, 403) or (isinstance(body, dict) and body.get("code") in ("42501", "PGRST301", "PGRST302")):
-        return {"table": table, "state": "blocked"}
-    if st != 200 and st != 206:
-        return {"table": table, "state": "error", "detail": f"HTTP {st}"}
-    cols = list(body[0].keys()) if isinstance(body, list) and body else []
-    del body                                      # the row's values are never kept
-    visible = _range_total(h)
-    if not cols:
-        try:
-            _, total = shop_get(f"/{urllib.parse.quote(table)}", {"select": "*", "limit": "0"}, count=True)
-        except Exception:
-            total = None
-        return {"table": table, "state": "protected" if total else "empty", "rows_total": total}
-    fused = pii_personal_for(table, set(cols))
-    personal = ([{"column": r["column"], "kind": r["label"], "sensitivity": r["sensitivity"]} for r in fused] if fused is not None
-                else [{"column": c, "kind": k[0], "sensitivity": k[1]} for c, k in classify_columns(table, cols)])
-    sev = max((p["sensitivity"] for p in personal), key=lambda x: SEV_RANK[x], default="info")
-    return {"table": table, "state": "exposed", "rows_visible": visible, "columns": len(cols), "personal": personal,
-            "severity": sev, "fix": _fix_sql(table, cols) if personal else None}
-
-
-def run_exposure(actor):
-    if not (SHOP_URL and SHOP_ANON):
-        raise ValueError("Add SHOP_SUPABASE_ANON_KEY (the shop's public key) to .env to run the exposure test.")
-    with _exposure_lock:
-        started = time.time()
-        schema = shop_schema()
-        tables = sorted(schema)
-        with ThreadPoolExecutor(max_workers=6) as ex:
-            results = list(ex.map(lambda t: _probe_table(t, schema[t]), tables))
-        checks = []
-        st, _, _ = anon_get("/", accept="application/openapi+json")
-        checks.append({"key": "schema", "severity": "low" if st == 200 else "ok",
-                       "text": "Table and column names are listed publicly by the API." if st == 200 else "The API doesn't list tables and columns to the public.",
-                       "fix": "Supabase → Settings → API: turn off the public OpenAPI schema." if st == 200 else None})
-        st, auth, _ = anon_get("/settings", base="/auth/v1")
-        if st == 200 and isinstance(auth, dict):
-            if auth.get("mailer_autoconfirm") or auth.get("phone_autoconfirm"):
-                checks.append({"key": "autoconfirm", "severity": "medium", "text": "New accounts are confirmed without verifying the email or phone, so anyone can create accounts with someone else's address.",
-                               "fix": "Supabase → Authentication → Providers: turn on Confirm email."})
-            else:
-                checks.append({"key": "autoconfirm", "severity": "ok", "text": "New accounts must verify their email before they can sign in."})
-            if auth.get("external", {}).get("anonymous_users"):
-                checks.append({"key": "anonymous", "severity": "medium", "text": "Anonymous sign-ins are on: anyone gets a signed-in session, so data open to all signed-in users is open to everyone.",
-                               "fix": "Turn off anonymous sign-ins unless the shop needs them, and check policies written 'to authenticated'."})
-            if not auth.get("disable_signup"):
-                checks.append({"key": "signup", "severity": "info", "text": "Public sign-up is open (normal for a shop). Rows readable by every signed-in user are only one sign-up away from the public.",
-                               "fix": "Write policies per customer (auth.uid() = user_id), not 'to authenticated using (true)'."})
-        try:
-            req = urllib.request.Request(f"{SHOP_URL}/storage/v1/bucket", headers={"apikey": SHOP_KEY, "Authorization": f"Bearer {SHOP_KEY}"}, method="GET")
-            with urllib.request.urlopen(req, timeout=15) as r:
-                buckets = json.load(r)
-        except Exception:
-            buckets = None
-        if isinstance(buckets, list):
-            pub = [b for b in buckets if b.get("public")]
-            for b in pub:
-                risky = re.search(r"invoice|kyc|id|doc|avatar|user|customer|profile|private|upload|return|bill", str(b.get("name", "")).lower())
-                checks.append({"key": f"bucket:{b.get('name')}", "severity": "high" if risky else "low",
-                               "text": f"Storage bucket '{b.get('name')}' is public: anyone with a file's link can download it.",
-                               "fix": f"If it holds customers' files, make it private: update storage.buckets set public = false where id = '{b.get('id')}';"})
-            if not pub:
-                checks.append({"key": "buckets", "severity": "ok", "text": f"No public storage buckets ({len(buckets)} bucket(s) in all)."})
-        try:
-            rpcs = [p[5:] for p in (shop_get("/", accept_openapi=True).get("paths") or {}) if p.startswith("/rpc/")]
-        except Exception:
-            rpcs = []
-        if rpcs:
-            checks.append({"key": "rpc", "severity": "info", "text": f"{len(rpcs)} database function(s) exist: {', '.join(rpcs[:8])}{'…' if len(rpcs) > 8 else ''}. They weren't called (that could change data); check who may run them.",
-                           "fix": "\n".join(f"revoke execute on function public.{f} from anon;" for f in rpcs[:20])})
-        exposed = [r for r in results if r["state"] == "exposed"]
-        personal = [r for r in exposed if r.get("personal")]
-        penalty = sum({"critical": 30, "high": 18, "medium": 8}.get(r["severity"], 0) for r in personal)
-        penalty += sum({"high": 15, "medium": 6, "low": 3}.get(c["severity"], 0) for c in checks)
-        out = {"at": now_iso(), "by": actor, "seconds": round(time.time() - started, 1), "score": max(0, 100 - penalty),
-               "tables": results, "checks": checks,
-               "counts": {"tables": len(results), "exposed": len(exposed), "personal": len(personal),
-                          "critical": sum(r["severity"] == "critical" for r in personal), "blocked": sum(r["state"] in ("blocked", "protected") for r in results),
-                          "empty": sum(r["state"] == "empty" for r in results), "errors": sum(r["state"] == "error" for r in results)}}
-        prev = read_exposure()
-        before = {r["table"] for r in (prev.get("last") or {}).get("tables", []) if r.get("state") == "exposed" and r.get("personal")}
-        out["new_exposures"] = sorted({r["table"] for r in personal} - before) if prev.get("last") else []
-        hist = (prev.get("history") or []) + [{"at": out["at"], "score": out["score"], **out["counts"]}]
-        DATA.mkdir(exist_ok=True)
-        write_tracked(EXPOSURE_FILE, json.dumps({"last": out, "history": hist[-30:]}, indent=2))
-    meter(actor, "exposure.tests")
-    audit(actor, "exposure.run", f"score {out['score']}: {len(personal)} table(s) with personal data readable with the public key")
-    return out
-
-
-def read_exposure():
-    try:
-        return json.loads(EXPOSURE_FILE.read_text()) if EXPOSURE_FILE.exists() else {}
-    except ValueError:
-        return {}
-
-
-def exposure_view():
-    d = read_exposure()
-    return {"configured": bool(SHOP_URL and SHOP_ANON), "last": d.get("last"), "history": d.get("history", [])[-20:]}
-
-
-def _exposure_daily():
-    """Re-run the test once a day after the first run, so a new leak shows up without anyone asking."""
-    while True:
-        time.sleep(600)
-        try:
-            last = (read_exposure().get("last") or {}).get("at")
-            if SHOP_ANON and last and (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() > 86400:
-                run_exposure("daily exposure test")
-        except Exception as e:
-            sys.stderr.write(f"[consent] daily exposure test failed: {e}\n")
-
-
-threading.Thread(target=_exposure_daily, daemon=True).start()
 
 
 # ---------------------------------------------------------------- evidence ledger (data/ledger.jsonl)
 # A tamper-evident record of everything the service writes. Each audit event and each change to a
 # compliance record file (policies, retention, breach detectors and incidents, access, plan, billing,
-# readiness, exposure, and every saved version) adds a ledger entry holding that record's SHA-256
+# readiness, data map, PII verdicts, and every saved version) adds a ledger entry holding that record's SHA-256
 # fingerprint; each entry also holds the previous entry's hash, so editing, deleting or reordering any
 # past entry breaks the chain. Once a day (IST) the chain's head is sealed. Verification re-reads the
 # audit log and the files and checks them against the ledger. usage.json (meters, rewritten every few
@@ -2575,6 +2415,7 @@ LEDGER_FILE = DATA / "ledger.jsonl"
 INTEGRITY_FILE = DATA / "integrity.json"     # the last verification result (status only)
 TRACKED_FILES = ["policy.json", "retention.json", "breach.json", "incidents.json", "iam.json", "plan.json",
                  "billing.json", "readiness.json", "exposure.json", "datamap.json", "pii.json"]
+# exposure.json stays tracked: results of the public exposure test (removed 20 Oct 2026) remain part of the evidence.
 TRACKED_DIRS = ["history", "retention_history", "breach_history"]
 FP_IGNORE = {"iam.json": ("last_used",)}
 GENESIS_HASH = "0" * 64
@@ -2892,15 +2733,11 @@ def build_pack(actor, frm, to, token):
             continue
         if inr(ev.get("at")):
             events.append(ev)
-    exp = read_exposure()
     pack = {"kind": "dpdp-evidence-pack", "format": 1, "client": {"name": CLIENT_NAME, "id": CLIENT_ID},
             "generated_at": now_iso(), "generated_by": actor, "from": d0.date().isoformat(), "to": (d1 - timedelta(days=1)).date().isoformat(),
             "integrity": {k: integrity[k] for k in ("ok", "checked_at", "entries", "head", "audit_records", "files_tracked", "since", "problems", "problem_count")},
             "seals": [s for s in integrity["seals"] if d0.date().isoformat() <= (s["day"] or "") < d1.date().isoformat()],
             "readiness": [h for h in read_readiness() if inr(h.get("at"))],
-            "exposure": {"last": {k: (exp.get("last") or {}).get(k) for k in ("at", "by", "score", "counts", "checks", "new_exposures")} if exp.get("last") else None,
-                         "exposed_tables": [t for t in (exp.get("last") or {}).get("tables", []) if t.get("state") == "exposed"],
-                         "history": [h for h in exp.get("history", []) if inr(h.get("at"))]},
             "log_retention": log_retention(token),
             "breach": {"incidents": incidents, "clocks_hours": read_doc("breach").get("clocks")},
             "records": stores,
@@ -2977,7 +2814,7 @@ threading.Thread(target=_integrity_daily, daemon=True).start()
 # read and write it (from NigraniAI's database_logs), which purposes cover it (the consent policy and
 # the declarations below) and which processors receive it (detected in the logs and the settings, plus
 # a register the admins keep). From that it writes the record of processing and finds the gaps: data
-# with no purpose, services using data outside their purposes, missing retention, public exposure,
+# with no purpose, services using data outside their purposes, missing retention,
 # processors without a contract. Reads only: shop schema and row counts (service key), log rows (the
 # user's own token). No values are read or stored, only names and counts.
 DATAMAP_FILE = DATA / "datamap.json"
@@ -3088,7 +2925,7 @@ def _row_count(table):
 
 def _dm_context(token):
     """Everything the map needs except the log flows: schema, row counts, purposes, retention,
-    exposure, the service registry, personal data seen in log lines, detected processors."""
+    the service registry, personal data seen in log lines, detected processors."""
     policy, retention = read_doc("policy"), read_doc("retention")
     purposes = {p["id"]: p for p in policy.get("purposes", [])}
     with _datamap_lock:
@@ -3101,7 +2938,6 @@ def _dm_context(token):
     # -- where the data is: tables and their personal columns
     with ThreadPoolExecutor(max_workers=6) as ex:
         counts = dict(zip(schema, ex.map(_row_count, list(schema))))
-    exposure = {t["table"]: t for t in ((read_exposure().get("last") or {}).get("tables") or [])}
     table_purposes = {}
     for a in policy.get("activities", []):
         if a.get("table"):
@@ -3142,12 +2978,11 @@ def _dm_context(token):
         cats = sorted({p["category"] for p in personal if p["category"] != "identifier"})
         if not cats and personal and PERSON_TABLE.search(t.lower()):
             cats = ["linked to a person"]
-        ex = exposure.get(t) or {}
         tables[t] = {"table": t, "rows": counts.get(t), "columns": len(cols), "personal": personal, "categories": cats,
                      "is_personal": bool(cats), "sensitivity": max((p["sensitivity"] for p in personal), key=lambda s: SEV_RANK.get(s, 0), default=None),
                      "purposes": [p for p in table_purposes.get(t, []) if p in purposes], "retention": retention_by.get(t, []),
                      "policy_purposes": [p for p in policy_purposes.get(t, []) if p in purposes],
-                     "public": ex.get("state") if ex else None, "services": {}, "accesses": 0, "last_access": None}
+                     "services": {}, "accesses": 0, "last_access": None}
 
     # -- who uses it: service → table flows from the database logs
     registry = {}
@@ -3290,10 +3125,6 @@ def _dm_compute(ctx, flows, actor, started, log_rows, truncated, since):
             gap("no_retention", t["table"], "medium", f"{t['table']} has no retention rule",
                 f"Personal data ({cats}) is kept with no deadline.", "DPDP Act s.8(7) · erase when the purpose is served",
                 "Add a retention rule for this table in Retention → Rules.", f"t:{t['table']}")
-        if t["public"] == "exposed":
-            gap("public", t["table"], "critical", f"{t['table']} is readable by anyone with the public key",
-                "The public exposure test could read this table without signing in.", "DPDP Act s.8(5) · DPDP Rules Rule 6(1)(b)",
-                "Apply the fix in Readiness → Public exposure.", f"t:{t['table']}")
         if t["rows"] and not t["accesses"]:
             gap("dormant", t["table"], "low", f"{t['table']}: personal data no service used in {DATAMAP_WINDOW_DAYS} days",
                 f"{t['rows']:,} rows with {cats}, untouched in the logs for {DATAMAP_WINDOW_DAYS} days.", "DPDP Act s.8(7)",
@@ -3404,8 +3235,6 @@ def _dm_compute(ctx, flows, actor, started, log_rows, truncated, since):
                      "recipients": [{"name": x["name"], "role": x.get("role"), "country": x.get("country"), "dpa": x.get("dpa")} for x in procs if pid in (x.get("purposes") or [])],
                      "retention": [{"table": t["table"], "rules": [r["rule"] for r in t["retention"]]} for t in mine],
                      "safeguards": [s for s in [
-                         "Public key blocked on every table" if mine and all(t["public"] in ("blocked", "protected") for t in mine) else
-                         ("Public exposure: " + ", ".join(t["table"] for t in mine if t["public"] == "exposed")) if any(t["public"] == "exposed" for t in mine) else None,
                          "Dashboard access is deny-by-default (IAM policies)", "Personal data masked in application logs"] if s],
                      "gaps": [g["id"] for g in gaps if g.get("node") in [f"p:{pid}"] + [f"t:{t['table']}" for t in mine]]})
     orphan = [t["table"] for t in tables.values() if t["is_personal"] and not t["purposes"]]
@@ -4381,7 +4210,6 @@ def central_report(kind="periodic"):
                  "tax": (i.get("tax") or {}).get("total", 0), "total": i.get("total", 0), "currency": i.get("currency", "INR"),
                  "lines": [{"desc": l.get("desc"), "amount": l.get("amount")} for l in i.get("lines", [])]} for i in b["invoices"][-200:]]
     rd = (read_readiness() or [None])[-1] or {}
-    ex = read_exposure().get("last") or {}
     with _dm_live_lock:
         dm = _dm_live["result"]
     dm = dm or (read_datamap().get("last") or {})
@@ -4399,7 +4227,6 @@ def central_report(kind="periodic"):
                 overdue += 1
                 break
     flags = billing_flags()
-    exc = ex.get("counts") or {}
     dms = dm.get("stats") or {}
     return {"kind": kind, "version": APP_VERSION, "reported_at": now_iso(), "client": {"id": CLIENT_ID, "name": CLIENT_NAME},
             "plan": {"name": plan.get("name"), "template": plan.get("template"), "base_fee": plan.get("base_fee"), "currency": plan.get("currency", "INR"),
@@ -4409,7 +4236,6 @@ def central_report(kind="periodic"):
             "billing": {"invoices": invoices, "restricted": flags["restricted"], "unpaid": flags["unpaid"], "overdue": flags["overdue"],
                         "amount_due": flags["amount_due"], "pending_plan": b.get("pending_plan")},
             "health": {"readiness": {"score": rd.get("score"), "grade": rd.get("grade"), "at": rd.get("at"), "areas": {a.get("key"): a.get("score") for a in rd.get("areas", [])}},
-                       "exposure": {"score": ex.get("score"), "at": ex.get("at"), "tables": exc.get("tables"), "personal": exc.get("personal")},
                        "datamap": {"score": dm.get("score"), "at": (dm.get("live") or {}).get("at") or dm.get("at"), "gaps": dms.get("gaps"),
                                    "critical": dms.get("gaps_critical"), "high": dms.get("gaps_high")},
                        "integrity": {"ok": ig.get("ok"), "checked_at": ig.get("checked_at"), "problem_count": ig.get("problem_count")},
@@ -4488,8 +4314,6 @@ ROUTE_ACTIONS = [
     ("POST", r"/api/billing/invoices/inv_[0-9a-f]{12}/pay|/api/billing/verify", "billing:PayInvoices"),
     ("GET", r"/api/readiness", ("readiness:Read", "readiness:Run")),
     ("POST", r"/api/readiness", "readiness:Run"),
-    ("GET", r"/api/readiness/exposure", ("readiness:Read", "readiness:Run")),
-    ("POST", r"/api/readiness/exposure", "readiness:Run"),
     ("GET", r"/api/evidence", ("readiness:VerifyIntegrity", "readiness:Read")),
     ("GET", r"/api/datamap", ("datamap:Read", "readiness:Read")),
     ("GET", r"/api/pii", ("datamap:Read", "telemetry:ReadLogs", "readiness:Read")),
@@ -4610,8 +4434,6 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path.path == "/api/readiness":
                 return self.send(200, {"history": read_readiness()[-20:]})
-            if path.path == "/api/readiness/exposure":
-                return self.send(200, exposure_view())
             if path.path == "/api/evidence":
                 return self.send(200, evidence_view(self.token()))
             if path.path == "/api/datamap":
@@ -4838,16 +4660,6 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, TypeError, json.JSONDecodeError) as e:
                 return self.send(400, {"error": str(e)})
             return self.send(404, {"error": "not found"})
-        if p == "/api/readiness/exposure":
-            user = self.guard()
-            if not user:
-                return
-            try:
-                return self.send(201, run_exposure(user))
-            except ValueError as e:
-                return self.send(400, {"error": str(e)})
-            except (urllib.error.URLError, TimeoutError) as e:
-                return self.send(502, {"error": f"Couldn't reach the customer database: {e}"})
         if p == "/api/readiness":
             user = self.guard()
             if not user:

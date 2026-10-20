@@ -620,6 +620,7 @@ const Retention = (() => {
     },
     // For the main dashboard: loads once if needed, then reuses the result for 60 s.
     async summary() {
+      for (let i = 0; i < 150 && S.busy; i++) await new Promise((r) => setTimeout(r, 200));   // a load already running: wait for it (max 30 s)
       if (!S.busy && (!S.policy || !S.loadedAt || Date.now() - S.loadedAt > 60000)) await loadAll({ withPolicy: !S.draft });
       if (!S.policy || !S.loadedAt) return null;
       const rules = P().rules.filter((r) => r.enabled), res = S.res;

@@ -1327,6 +1327,7 @@ const Consent = (() => {
     },
     // For the main dashboard: loads once if needed, then reuses the result for 60 s.
     async summary() {
+      for (let i = 0; i < 150 && C.busy; i++) await new Promise((r) => setTimeout(r, 200));   // a load already running: wait for it (max 30 s)
       if (!C.busy && (!C.result || !C.loadedAt || Date.now() - C.loadedAt > 60000)) await loadAll({ withPolicy: !C.draft });
       if (!C.result) return null;
       const cov = C.result.coverage, issues = issueList();
