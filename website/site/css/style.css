@@ -482,3 +482,11 @@ form.glass { padding: 30px; }
 @media (max-width: 1100px) { .float.f1 { left: -8px; } .float.f2 { right: -8px; } }
 @media (max-width: 960px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .hero h1 { font-size: 40px; } .mini-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ms { padding: 9px 10px; } .ms b { font-size: 14px; } }
+
+/* full eye logo (transparent) instead of the round crop */
+.brand-eye { height: 46px; width: auto; filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.35)); }
+.foot .brand-eye { height: 52px; }
+.cta-eye { width: 300px; height: auto; margin: 0 auto 22px; filter: drop-shadow(0 0 40px rgba(34, 211, 238, 0.45)); }
+.c-eye { background: none; border: 0; box-shadow: none; overflow: visible; border-radius: 0; width: min(640px, 92%); }
+.c-eye img { width: 100%; height: auto; filter: drop-shadow(0 0 60px rgba(34, 211, 238, 0.45)); }
+@media (max-width: 640px) { .brand-eye { height: 38px; } .brand-word { font-size: 19px; } .cta-eye { width: 220px; } }

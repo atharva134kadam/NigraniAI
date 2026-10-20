@@ -4,7 +4,7 @@ The public NigraniAI website: plain HTML, CSS and JavaScript. No build step, not
 
 | File | What it is |
 |---|---|
-| `index.html` | Home: hero with a live product illustration, the problem, all 12 tools (filterable), three spotlights (explainable anomalies, tamper-evident evidence, layered PII detection), how it works, the DPDP Act explained (roles, duties → tools, breach clocks, penalties, countdown to 13 May 2027, FAQ), pricing (setup · hosted · self-hosted, plan tiers without prices), demo booking |
+| `index.html` | Home: hero with a live product illustration, the problem, all 11 tools (filterable), three spotlights (explainable anomalies, tamper-evident evidence, layered PII detection), how it works, the DPDP Act explained (roles, duties → tools, breach clocks, penalties, countdown to 13 May 2027, FAQ), pricing (setup · hosted · self-hosted, plan tiers without prices), demo booking |
 | `company.html` | Company: mission, vision, story, principles, team (placeholders), contact (placeholders) |
 | `css/style.css` | Brand system and every section, responsive down to phones, respects reduced motion |
 | `js/main.js` | Navigation, scroll reveals, tool filter, hero animation, countdown, cookie banner, booking form |

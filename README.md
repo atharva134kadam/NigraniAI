@@ -12,8 +12,7 @@ readiness score and tamper-evident evidence for auditors.
 
 | Folder | What it is |
 |---|---|
-| [`dashboard/`](dashboard/) | The compliance system each client gets: browser dashboard (plain HTML, CSS, JS), the Python service (standard library only) with detectors, the anomaly model, PII detection, billing and the evidence ledger, and the AWS deploy tooling (`dashboard/deploy/`). |
-| [`provider-console/`](provider-console/) | The provider's central console: tracks every client copy's health, usage and billing. |
+| [`dashboard/`](dashboard/) | The compliance system each client gets: browser dashboard (plain HTML, CSS, JS), the Python service (standard library only) with detectors, the anomaly model, PII detection, billing and the evidence ledger. |
 | [`website/`](website/) | The public NigraniAI website. |
 
 Each folder has its own README with setup steps.
