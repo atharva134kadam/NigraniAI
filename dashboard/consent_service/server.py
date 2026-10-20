@@ -4075,6 +4075,9 @@ def cycle_lines(start, end, billed_from=None):
     with _usage_lock:
         tot = _cycle_totals(_usage_doc(), plan, start, end)
     lines = []
+    cf = plan.get("cycle_fee") or {}
+    if cf.get("start") == start.isoformat():   # upgraded during this cycle: the difference is on the upgrade invoice
+        plan = {**plan, "base_fee": cf.get("fee", 0), "name": f"{cf.get('name')} (upgraded to {plan['name']} during the cycle, difference already invoiced)"}
     if plan["base_fee"]:
         frac = 1.0
         if billed_from and start < billed_from < end:
@@ -4160,10 +4163,16 @@ def _restore_if_settled():
         audit("billing", "billing.restored", "Overdue invoices paid: the plan is restored")
 
 
-def _apply_template(template, actor):
+def _apply_template(template, actor, keep_cycle_fee=False):
     cur = read_plan()
     new = _plan_from_template(template, actor)
     new.update(rev=cur.get("rev", 0) + 1, user_caps=cur.get("user_caps", {}), alert_at=cur.get("alert_at", [80, 100]), cycle_day=cur.get("cycle_day", 1))
+    if keep_cycle_fee:
+        # A paid mid-cycle upgrade already covered the difference for the rest of this cycle, so the
+        # cycle's own invoice keeps charging the plan the cycle started on (the earliest one this cycle).
+        start = cycle_bounds(cur)[0].isoformat()
+        prev = cur.get("cycle_fee") or {}
+        new["cycle_fee"] = prev if prev.get("start") == start else {"start": start, "fee": cur.get("base_fee", 0), "name": cur.get("name")}
     write_plan(new)
     audit(actor, "billing.plan", f"plan changed to {new['name']}")
 
@@ -4264,7 +4273,7 @@ def _mark_paid(inv, payment, via, actor):
 def _after_paid(inv):
     _restore_if_settled()   # first lift an overdue restriction, then apply a paid upgrade on top
     if inv.get("upgrade_to"):
-        _apply_template(inv["upgrade_to"], "billing (upgrade paid)")
+        _apply_template(inv["upgrade_to"], "billing (upgrade paid)", keep_cycle_fee=True)
 
 
 def verify_payment(body, actor):
