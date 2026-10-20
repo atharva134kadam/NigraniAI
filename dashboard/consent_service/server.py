@@ -2288,20 +2288,7 @@ METERS = {
     "api.requests": ("API requests", "requests", "meter", False, 1000, "Authenticated requests to the service"),
     "seats": ("Users", "users", "gauge", True, 1, "People with a dashboard account (counted now, not summed)"),
 }
-DEFAULT_PLANS = {
-    "free": {"name": "Free", "base_fee": 0, "meters": {
-        "logs.analysed": [100000, 0], "ai.questions": [50, 0], "ai.tokens": [300000, 0], "ai.attachments": [10, 0], "lookups": [20, 0], "seats": [2, 0]},
-        "hard": ["ai.questions", "ai.tokens", "ai.attachments", "lookups", "seats"]},
-    "starter": {"name": "Starter", "base_fee": 19999, "meters": {
-        "logs.analysed": [1000000, 25], "ai.questions": [500, 0], "ai.tokens": [3000000, 40], "ai.attachments": [100, 5], "lookups": [300, 2], "seats": [5, 1500]},
-        "hard": ["seats"]},
-    "growth": {"name": "Growth", "base_fee": 79999, "meters": {
-        "logs.analysed": [10000000, 15], "ai.questions": [3000, 0], "ai.tokens": [20000000, 30], "ai.attachments": [1000, 3], "lookups": [3000, 1], "seats": [25, 1200]},
-        "hard": []},
-    "enterprise": {"name": "Enterprise", "base_fee": 250000, "meters": {
-        "logs.analysed": [None, 0], "ai.questions": [None, 0], "ai.tokens": [None, 0], "ai.attachments": [None, 0], "lookups": [None, 0], "seats": [None, 0]},
-        "hard": []},
-}
+DEFAULT_PLANS = {"free": {"name": "Free", "base_fee": 0, "tagline": "Applied only while an invoice is overdue", "points": [], "meters": {"logs.analysed": [100000, 0], "ai.questions": [50, 0], "ai.tokens": [300000, 0], "ai.attachments": [10, 0], "lookups": [20, 0], "seats": [2, 0]}, "hard": ["ai.questions", "ai.tokens", "ai.attachments", "lookups", "seats"]}, "basic": {"name": "Basic", "base_fee": 19999, "tagline": "Up to 1.5 crore log lines a month · about 5,000 visitors a day", "points": ["5 users", "Hosted on AWS in India (Mumbai)", "Every compliance module, the ML model and the AI assistant"], "meters": {"logs.analysed": [15000000, 0.4], "ai.questions": [1000, 0], "ai.tokens": [6000000, 10], "ai.attachments": [200, 3], "lookups": [500, 2], "seats": [5, 1500]}, "hard": ["seats"]}, "growth": {"name": "Growth", "base_fee": 39999, "tagline": "Up to 15 crore log lines a month · about 50,000 visitors a day", "points": ["15 users", "Scalable log engine for peaks up to ~1,000 lines/s", "Priority support"], "meters": {"logs.analysed": [150000000, 0.4], "ai.questions": [3000, 0], "ai.tokens": [20000000, 10], "ai.attachments": [1000, 3], "lookups": [3000, 1], "seats": [15, 1200]}, "hard": []}, "scale": {"name": "Scale", "base_fee": 99999, "tagline": "Up to 150 crore log lines a month · about 5 lakh visitors a day", "points": ["30 users", "Dedicated log database and stream workers", "Standby for high availability"], "meters": {"logs.analysed": [1500000000, 0.4], "ai.questions": [10000, 0], "ai.tokens": [60000000, 8], "ai.attachments": [5000, 2], "lookups": [10000, 1], "seats": [30, 1000]}, "hard": []}, "enterprise": {"name": "Enterprise", "base_fee": 299999, "tagline": "Unlimited log volume and users", "points": ["Multi-node log engine", "Custom integrations", "Agreed service levels (SLA)"], "meters": {"logs.analysed": [None, 0], "ai.questions": [None, 0], "ai.tokens": [None, 0], "ai.attachments": [None, 0], "lookups": [None, 0], "seats": [None, 0]}, "hard": []}}
 
 
 def provider():
@@ -2309,7 +2296,7 @@ def provider():
     seller details for invoices, billing rules and the plan catalogue the client chooses from."""
     d = json.loads(PROVIDER_FILE.read_text()) if PROVIDER_FILE.exists() else {}
     d.setdefault("seller", {})
-    d["billing"] = {"prefix": "DPDP", "due_days": 15, "gst": True, "sac": "998314", "grace_days": 14, "initial_plan": "growth", **(d.get("billing") or {})}
+    d["billing"] = {"prefix": "DPDP", "due_days": 15, "gst": True, "sac": "998314", "grace_days": 14, "initial_plan": "basic", **(d.get("billing") or {})}
     d["plans"] = d.get("plans") or DEFAULT_PLANS
     return d
 
@@ -4385,7 +4372,8 @@ def billing_view(user):
         if t == "free":
             continue
         try:
-            options[t] = {"name": tp["name"], "base_fee": tp["base_fee"], **upgrade({"template": t}, user, preview=True)}
+            options[t] = {"name": tp["name"], "base_fee": tp["base_fee"], "tagline": tp.get("tagline", ""), "points": list(tp.get("points") or [])[:4],
+                          **upgrade({"template": t}, user, preview=True)}
         except ValueError:
             pass
     now = datetime.now(timezone.utc)

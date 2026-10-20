@@ -1,5 +1,5 @@
 {
-  "_about": "Provider settings for this client's copy. Edited only by the provider on the server; the client's admins can't see or change it. Prices in rupees per month, before GST. Meter values: [included per month (null = unlimited), overage price per block]. Blocks: log lines per 10,000; AI tokens per 1,00,000; others per unit.",
+  "_about": "Provider settings for this client's copy. Edited only by the provider on the server; the client's admins can't see or change it. Prices in rupees per month, before GST. Meter values: [included per month (null = unlimited), overage price per block]. Blocks: log lines per 10,000 (₹0.40 per 10,000 = ₹40 per million); AI tokens per 1,00,000; others per unit. 'free' is not sold: it applies only while an invoice is overdue. The one-time setup and development fee is invoiced outside this catalogue.",
   "seller": {
     "legal_name": "",
     "address": "",
@@ -13,12 +13,14 @@
     "gst": true,
     "sac": "998314",
     "grace_days": 14,
-    "initial_plan": "growth"
+    "initial_plan": "basic"
   },
   "plans": {
     "free": {
       "name": "Free",
       "base_fee": 0,
+      "tagline": "Applied only while an invoice is overdue",
+      "points": [],
       "meters": {
         "logs.analysed": [
           100000,
@@ -53,28 +55,34 @@
         "seats"
       ]
     },
-    "starter": {
-      "name": "Starter",
+    "basic": {
+      "name": "Basic",
       "base_fee": 19999,
+      "tagline": "Up to 1.5 crore log lines a month · about 5,000 visitors a day",
+      "points": [
+        "5 users",
+        "Hosted on AWS in India (Mumbai)",
+        "Every compliance module, the ML model and the AI assistant"
+      ],
       "meters": {
         "logs.analysed": [
-          1000000,
-          25
+          15000000,
+          0.4
         ],
         "ai.questions": [
-          500,
+          1000,
           0
         ],
         "ai.tokens": [
-          3000000,
-          40
+          6000000,
+          10
         ],
         "ai.attachments": [
-          100,
-          5
+          200,
+          3
         ],
         "lookups": [
-          300,
+          500,
           2
         ],
         "seats": [
@@ -88,11 +96,17 @@
     },
     "growth": {
       "name": "Growth",
-      "base_fee": 79999,
+      "base_fee": 39999,
+      "tagline": "Up to 15 crore log lines a month · about 50,000 visitors a day",
+      "points": [
+        "15 users",
+        "Scalable log engine for peaks up to ~1,000 lines/s",
+        "Priority support"
+      ],
       "meters": {
         "logs.analysed": [
-          10000000,
-          15
+          150000000,
+          0.4
         ],
         "ai.questions": [
           3000,
@@ -100,7 +114,7 @@
         ],
         "ai.tokens": [
           20000000,
-          30
+          10
         ],
         "ai.attachments": [
           1000,
@@ -111,15 +125,58 @@
           1
         ],
         "seats": [
-          25,
+          15,
           1200
+        ]
+      },
+      "hard": []
+    },
+    "scale": {
+      "name": "Scale",
+      "base_fee": 99999,
+      "tagline": "Up to 150 crore log lines a month · about 5 lakh visitors a day",
+      "points": [
+        "30 users",
+        "Dedicated log database and stream workers",
+        "Standby for high availability"
+      ],
+      "meters": {
+        "logs.analysed": [
+          1500000000,
+          0.4
+        ],
+        "ai.questions": [
+          10000,
+          0
+        ],
+        "ai.tokens": [
+          60000000,
+          8
+        ],
+        "ai.attachments": [
+          5000,
+          2
+        ],
+        "lookups": [
+          10000,
+          1
+        ],
+        "seats": [
+          30,
+          1000
         ]
       },
       "hard": []
     },
     "enterprise": {
       "name": "Enterprise",
-      "base_fee": 250000,
+      "base_fee": 299999,
+      "tagline": "Unlimited log volume and users",
+      "points": [
+        "Multi-node log engine",
+        "Custom integrations",
+        "Agreed service levels (SLA)"
+      ],
       "meters": {
         "logs.analysed": [
           null,

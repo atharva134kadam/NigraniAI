@@ -41,6 +41,7 @@ const Billing = (() => {
         <div class="cp-list-head flat"><h3>Your plan</h3><span class="muted">${esc(b.plan.name)}${b.plan.base_fee ? ` · ${inr0(b.plan.base_fee)} / month + GST` : ""}${b.pending_plan ? ` · changes to ${esc(b.upgrades[b.pending_plan]?.name || b.pending_plan)} next cycle` : ""}</span></div>
         <div class="bl-plans">${Object.entries(b.upgrades).map(([k, u]) => `<div class="bl-plan${u.kind === "current" ? " on" : ""}">
           <b>${esc(u.name)}</b><span class="bl-fee">${inr0(u.base_fee)}<small> / month</small></span>
+          ${u.tagline ? `<small class="bl-tag">${esc(u.tagline)}</small>` : ""}${u.points?.length ? `<ul class="bl-pts">${u.points.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
           ${u.kind === "current" ? `<span class="rt-pill ok">Current plan</span>`
             : u.kind === "upgrade" ? `<small class="muted">Upgrade now: ${inr(u.total)} incl. GST for the rest of this cycle (${Math.round(u.fraction * 100)}%), then ${inr0(u.base_fee)} / month.</small>${b.can_change_plan ? `<button class="btn primary sm" data-bill="upgrade" data-t="${esc(k)}">Upgrade · pay ${inr(u.total)}</button>` : ""}`
             : `<small class="muted">Moves to ${esc(u.name)} when this cycle ends (${esc(d(u.starts))}).</small>${b.can_change_plan ? `<button class="btn ghost sm" data-bill="upgrade" data-t="${esc(k)}">Switch next cycle</button>` : ""}`}
