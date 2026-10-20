@@ -15,15 +15,18 @@ const AI = (() => {
     consent: { label: "Consent", desc: "Policy, rules, issues, customer consent status", get: () => Consent.context(), need: "consent:ReadFindings" },
     retention: { label: "Retention", desc: "Schedule, deadlines, erasure requests, inactivity", get: () => Retention.context(), need: "retention:ReadSchedule" },
     breach: { label: "Breach", desc: "Detectors, signals, incidents and their clocks", get: () => Breach.context(), need: "breach:ReadSignals" },
+    evidence: { label: "Evidence", desc: "Record integrity, the chain, seals, evidence packs, log retention", get: () => Evidence.context(), need: ["readiness:Read", "readiness:VerifyIntegrity", "readiness:ExportEvidence"] },
   };
+  const canSrc = (s) => [].concat(s.need).some((a) => can(a));
   // The AI only sees data from sections the user may read.
-  const permitted = () => Object.keys(SOURCES).filter((k) => can(SOURCES[k].need));
+  const permitted = () => Object.keys(SOURCES).filter((k) => canSrc(SOURCES[k]));
   const PROMPTS = {
     Explain: [
       ["What needs my attention most today, and why?", "all"],
       ["Explain the consent issues in plain language", "consent"],
       ["What does Rule 7 require when we have a breach?", "breach"],
       ["How is each retention deadline calculated here?", "retention"],
+      ["Are our records intact, and can I prove it to an auditor?", "evidence"],
     ],
     Investigate: [
       ["Which services produce the most errors, and when did they spike?", "logs"],
@@ -41,6 +44,7 @@ const AI = (() => {
       ["How do we stop personal data from reaching the logs?", "logs"],
       ["What controls would prevent processing before consent?", "consent"],
       ["Which detectors should we tune or add?", "breach"],
+      ["How do we protect our evidence records from someone with server access?", "evidence"],
       ["Build a monthly DPDP compliance checklist for our team", "all"],
     ],
   };
@@ -131,8 +135,8 @@ const AI = (() => {
       </div></div>`;
   }
   function renderSide() {
-    for (const k of [...A.scopes]) if (!can(SOURCES[k].need)) A.scopes.delete(k);
-    $("aiScopes").innerHTML = Object.entries(SOURCES).map(([k, s]) => { const ok = can(s.need); return `<label class="ai-scope${ok ? "" : " off"}"><input type="checkbox" data-scope="${k}" ${A.scopes.has(k) ? "checked" : ""} ${ok ? "" : "disabled"}><span><b>${esc(s.label)}</b><small>${ok ? esc(s.desc) : `No access (needs ${esc(s.need)})`}</small></span>${A.sizes[k] && ok ? `<em>${esc(A.sizes[k])}</em>` : ""}</label>`; }).join("");
+    for (const k of [...A.scopes]) if (!canSrc(SOURCES[k])) A.scopes.delete(k);
+    $("aiScopes").innerHTML = Object.entries(SOURCES).map(([k, s]) => { const ok = canSrc(s); return `<label class="ai-scope${ok ? "" : " off"}"><input type="checkbox" data-scope="${k}" ${A.scopes.has(k) ? "checked" : ""} ${ok ? "" : "disabled"}><span><b>${esc(s.label)}</b><small>${ok ? esc(s.desc) : `No access (needs ${esc(s.need)})`}</small></span>${A.sizes[k] && ok ? `<em>${esc(A.sizes[k])}</em>` : ""}</label>`; }).join("");
     $("aiHistory").innerHTML = A.chats.length ? A.chats.map((c) => `<div class="ai-hrow${c.id === A.cur ? " on" : ""}"><button class="ai-hitem" data-chat="${c.id}"><b>${esc(c.title)}</b><span>${esc(new Date(c.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true }))}</span></button><button class="icon-btn" data-del="${c.id}" aria-label="Delete conversation">×</button></div>`).join("")
       : `<p class="muted ai-none">Your conversations appear here. They stay in this browser.</p>`;
     const st = A.status;
@@ -257,7 +261,7 @@ const AI = (() => {
       }
     });
     view.addEventListener("change", (e) => {
-      if (e.target.matches("[data-scope]")) { e.target.checked && can(SOURCES[e.target.dataset.scope].need) ? A.scopes.add(e.target.dataset.scope) : A.scopes.delete(e.target.dataset.scope); renderComposer(); }
+      if (e.target.matches("[data-scope]")) { e.target.checked && canSrc(SOURCES[e.target.dataset.scope]) ? A.scopes.add(e.target.dataset.scope) : A.scopes.delete(e.target.dataset.scope); renderComposer(); }
       if (e.target.id === "aiFile") { attachFile(e.target.files[0]); e.target.value = ""; }
     });
     $("aiForm").addEventListener("submit", (e) => { e.preventDefault(); ask($("aiInput").value); });
@@ -286,12 +290,12 @@ const AI = (() => {
     if (!b) return;
     e.preventDefault(); e.stopPropagation();
     const [mod, ...rest] = b.dataset.askAi.split(":");
-    const item = mod === "consent" ? Consent.aiItem(rest.join(":")) : mod === "breach" ? Breach.aiItem(rest.join(":")) : mod === "readiness" ? Readiness.aiItem() : mod === "datamap" ? DataMap.aiItem() : null;
+    const item = mod === "consent" ? Consent.aiItem(rest.join(":")) : mod === "breach" ? Breach.aiItem(rest.join(":")) : mod === "readiness" ? Readiness.aiItem() : mod === "datamap" ? DataMap.aiItem() : mod === "evidence" ? Evidence.aiItem(rest.join(":")) : null;
     if (!item) return;
     show("ai");
     A.cur = null; A.attach = { name: item.name, text: item.text };
-    const sc = mod === "consent" ? "consent" : "breach";
-    if (can(SOURCES[sc].need)) A.scopes.add(sc);
+    const sc = mod === "consent" ? "consent" : mod === "evidence" ? "evidence" : "breach";
+    if (canSrc(SOURCES[sc])) A.scopes.add(sc);
     render();
     $("aiInput").value = item.question; autosize(); $("aiInput").focus();
   }, true);

@@ -67,7 +67,8 @@ _Status as of 18 Oct 2026._
 | **Breach Response** | 7 editable detectors + a live ML anomaly model (Isolation Forest), signal triage, breach register, Rule 7 / CERT-In clocks and notice drafts |
 | **AI Assistant** | Chat grounded in the dashboard's own numbers (Groq, `openai/gpt-oss-120b`): explains, investigates, gives fixes and prevention |
 | **Data map** | Live map of personal data: which tables hold it, which services use it, for which purposes, who receives it; inventory, record of processing (CSV / PDF) and gap analysis |
-| **Readiness score** | 0–100 DPDP readiness score and grade from nine areas, each finding citing the law and giving a fix; includes a **Public exposure** test of what anyone can read from the shop database, and **Evidence & audit**: tamper-evident records and evidence packs for auditors |
+| **Readiness score** | 0–100 DPDP readiness score and grade from nine areas, each finding citing the law and giving a fix; includes a **Public exposure** test of what anyone can read from the shop database |
+| **Evidence & audit** | Its own section: tamper-evident records (hash chain, daily seals), a visual chain timeline, protected-record list, evidence packs for auditors, pack checking (drag and drop), and ✦ Ask AI on the status, any problem or a pack check |
 | **Access management** | AWS IAM-style for ShopSmart's staff: 37 actions, JSON policies with Allow/Deny, wildcards and conditions, groups, simulator |
 | **Usage & plan** | Usage meters (log lines, AI, lookups, users…), what the plan includes and what's left, per-person caps, alerts |
 | **Billing** | Change plan (pro-rated), monthly GST tax invoices from the meters, pay with Razorpay, billing details, overdue rules |
@@ -451,7 +452,13 @@ and by itself once a day after the first run; new leaks since the last run are h
 run is metered (`exposure.tests`, not billed) and audited. Not covered: what one signed-in customer
 can read of another's data (needs a test account).
 
-**Evidence & audit tab** (shown with `readiness:VerifyIntegrity` or `readiness:ExportEvidence`).
+**Evidence & audit section** (`frontend/evidence.js`; in the sidebar for `readiness:Read`, `readiness:VerifyIntegrity` or
+`readiness:ExportEvidence`). Tabs: Overview (integrity checks, protected records with their last change,
+log retention, chain activity per day), Chain timeline (latest 40 entries, filterable, each showing its
+link to the previous fingerprint), Evidence packs (create with presets, drag-and-drop check, packs issued),
+Daily seals (30-day calendar) and How it works. `GET /api/evidence` also returns `chain`, `protected`,
+`by_type` and `per_day` (names, times and fingerprints only). The AI assistant has an **Evidence** data
+source, and ✦ Ask AI buttons on the status, each integrity problem, a pack check and the how-it-works tab.
 Makes the system's own records tamper-evident, so ShopSmart can show an auditor or the Board that
 nothing was altered after the fact.
 

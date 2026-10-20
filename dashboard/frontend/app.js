@@ -13,10 +13,10 @@ let session = null, currentView = "dashboard", firstShow = true;
 let ME = null;
 const can = (action) => !!ME && (ME.root || ME.allowed.includes(action));
 // The action each section needs before it appears in the navigation.
-const VIEW_ACTION = { dashboard: "dashboard:View", telemetry: "telemetry:ReadLogs", consent: "consent:ReadFindings", retention: "retention:ReadSchedule", breach: "breach:ReadSignals", ai: "ai:Ask", iam: null, usage: null, readiness: null, datamap: "datamap:Read", account: null };
+const VIEW_ACTION = { dashboard: "dashboard:View", telemetry: "telemetry:ReadLogs", consent: "consent:ReadFindings", retention: "retention:ReadSchedule", breach: "breach:ReadSignals", ai: "ai:Ask", iam: null, usage: null, readiness: null, evidence: null, datamap: "datamap:Read", account: null };
 const canUsage = () => can("usage:ViewOwnUsage") || can("usage:ViewAllUsage");
 function applyAccess() {
-  document.querySelectorAll("#nav [data-view]").forEach((b) => (b.hidden = b.dataset.view === "iam" ? !(can("iam:ListUsers") || can("iam:ListPolicies")) : b.dataset.view === "usage" ? !canUsage() : b.dataset.view === "readiness" ? !(can("readiness:Read") || can("readiness:Run")) : !!VIEW_ACTION[b.dataset.view] && !can(VIEW_ACTION[b.dataset.view])));
+  document.querySelectorAll("#nav [data-view]").forEach((b) => (b.hidden = b.dataset.view === "iam" ? !(can("iam:ListUsers") || can("iam:ListPolicies")) : b.dataset.view === "usage" ? !canUsage() : b.dataset.view === "readiness" ? !(can("readiness:Read") || can("readiness:Run")) : b.dataset.view === "evidence" ? !(can("readiness:Read") || can("readiness:VerifyIntegrity") || can("readiness:ExportEvidence")) : !!VIEW_ACTION[b.dataset.view] && !can(VIEW_ACTION[b.dataset.view])));
   // body.deny-<service>-<Action> for every action not allowed; style.css hides the matching controls.
   const cls = [...document.body.classList].filter((c) => !c.startsWith("deny-"));
   document.body.className = cls.join(" ");
@@ -26,6 +26,7 @@ function applyAccess() {
   billingBanner();
   if ($("wsName")) $("wsName").textContent = ME?.client?.name || "";
   if (ME && currentView === "datamap") DataMap.access();
+  if (ME && currentView === "evidence") Evidence.access();
   if (ME && typeof Dashboard !== "undefined") Dashboard.access();
 }
 const firstAllowed = () => Object.keys(VIEW_ACTION).find((v) => VIEW_ACTION[v] && can(VIEW_ACTION[v])) || "account";
@@ -148,7 +149,7 @@ async function signOut() {
 $("logoutBtn").onclick = signOut;
 
 /* ---------- Navigation ---------- */
-const TITLES = { dashboard: "Dashboard", telemetry: "Log Telemetry", consent: "Consent & Purpose", retention: "Retention", breach: "Breach Response", ai: "AI Assistant", iam: "Access management", usage: "Usage & plan", readiness: "DPDP readiness", datamap: "Data map", account: "Account" };
+const TITLES = { dashboard: "Dashboard", telemetry: "Log Telemetry", consent: "Consent & Purpose", retention: "Retention", breach: "Breach Response", ai: "AI Assistant", iam: "Access management", usage: "Usage & plan", readiness: "DPDP readiness", evidence: "Evidence & audit", datamap: "Data map", account: "Account" };
 // An unpaid invoice shows on every page (with Pay now for people who may see billing).
 function billingBanner() {
   const el = $("billBanner"), bl = ME?.billing;
@@ -165,7 +166,7 @@ function show(view, opts = {}) {
   $("viewTitle").textContent = TITLES[view];
   Object.keys(TITLES).forEach((v) => ($(`view-${v}`).hidden = v !== view));
   $("tStatus").hidden = view !== "telemetry";
-  $("live").closest("label").hidden = view === "account" || view === "ai" || view === "iam" || view === "readiness";
+  $("live").closest("label").hidden = view === "account" || view === "ai" || view === "iam" || view === "readiness" || view === "evidence";
   billingBanner();
   if (view === "usage" && ME && !canUsage()) return show(firstAllowed(), { replace: true });
   // Each view is its own browser history entry (#view), so Back and Forward move between views
@@ -182,6 +183,7 @@ function show(view, opts = {}) {
   else if (view === "iam") IAM.show();
   else if (view === "usage") Usage.show();
   else if (view === "readiness") Readiness.show();
+  else if (view === "evidence") Evidence.show();
   else if (view === "datamap") DataMap.show();
 }
 document.querySelectorAll("#nav button").forEach((b) => (b.onclick = () => show(b.dataset.view)));

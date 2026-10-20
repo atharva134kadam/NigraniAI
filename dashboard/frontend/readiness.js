@@ -4,8 +4,8 @@
    the law and gives a fix. Areas the person may not read are "not assessed", not failed.
    Results are saved with a score history. The "Public exposure" area comes from the server's exposure
    test (reads the customer database with the shop's public key); its own tab shows table-by-table results.
-   "Records & evidence" comes from the server's hash-chained ledger; the Evidence & audit tab verifies it,
-   shows the daily seals and log retention, and exports / checks evidence packs for an auditor.
+   "Records & evidence" comes from the server's hash-chained ledger; the Evidence & audit section
+   (evidence.js) verifies it, shows the chain and the daily seals, and builds / checks evidence packs.
    Uses Breach / Consent / Retention / Dashboard modules and session / can / ME from app.js. */
 const Readiness = (() => {
   const BASE = ((window.COMPLIANCE_CONFIG || {}).CONSENT_API || "http://localhost:8091").replace(/\/$/, "");
@@ -181,7 +181,7 @@ const Readiness = (() => {
     const W = 260, H = 60, X = (i) => 6 + (i * (W - 12)) / (h.length - 1), Y = (v) => H - 6 - (v / 100) * (H - 12);
     return `<div class="rd-trend"><span class="muted">Score history</span><svg viewBox="0 0 ${W} ${H}"><path d="${h.map((e, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(e.score).toFixed(1)}`).join("")}" class="rd-tline"/>${h.map((e, i) => `<circle cx="${X(i)}" cy="${Y(e.score)}" r="3" class="rd-tdot"><title>${esc(dt(e.at))}: ${e.score} (${esc(e.grade)})</title></circle>`).join("")}</svg></div>`;
   }
-  const tabs = () => `<div class="cp-tabs us-tabs" role="tablist">${[["score", "Readiness score"], ["exposure", "Public exposure"], ...(can("readiness:VerifyIntegrity") || can("readiness:ExportEvidence") ? [["evidence", "Evidence & audit"]] : [])].map(([k, l]) => `<button role="tab" class="${S.tab === k ? "on" : ""}" aria-selected="${S.tab === k}" data-rtab="${k}">${esc(l)}</button>`).join("")}</div>`;
+  const tabs = () => `<div class="cp-tabs us-tabs" role="tablist">${[["score", "Readiness score"], ["exposure", "Public exposure"]].map(([k, l]) => `<button role="tab" class="${S.tab === k ? "on" : ""}" aria-selected="${S.tab === k}" data-rtab="${k}">${esc(l)}</button>`).join("")}</div>`;
   const SEV = { critical: "Critical", high: "High", medium: "Medium", low: "Low", info: "Info", ok: "OK" };
   const KIND_LVL = { critical: "bad", high: "bad", medium: "warn", low: "warn", info: "ok", ok: "ok" };
   async function loadExposure() { try { S.exp = await api("/api/readiness/exposure"); } catch (e) { S.expErr = e.message; } }
@@ -233,129 +233,8 @@ const Readiness = (() => {
       <section class="panel ex-sec"><h3>Tables that passed <span class="muted">(${safe.length})</span></h3><div class="ex-pass">${safe.map((t) => `<span class="ex-chip s-ok" title="${esc(state(t))}">${esc(t.table)} <small>${esc(state(t))}</small></span>`).join("")}</div></section>
       <section class="panel ex-sec ex-note"><h3>How this works</h3>${how}<p class="muted">Not tested, on purpose: writing to tables and running database functions, because a test must never change the shop's data. It also can't see what one signed-in customer can read of another's data; that needs a test account. Fixes are shown for the shop's developer and never run from here.</p></section>`;
   }
-  /* ---------- evidence & audit ---------- */
-  const isoDay = (d) => new Date(d.getTime() + 330 * 6e4).toISOString().slice(0, 10);
-  async function loadEvidence() { S.evErr = ""; try { S.ev = await api("/api/evidence"); } catch (e) { S.evErr = e.message; } }
-  async function verifyNow() {
-    S.evBusy = "verify"; render();
-    try { const r = await api("/api/evidence/verify", { method: "POST" }); S.ev = { ...(S.ev || {}), ...r }; S.evErr = ""; } catch (e) { S.evErr = e.message; }
-    S.evBusy = ""; render();
-  }
-  async function makePack() {
-    const from = $("evFrom")?.value, to = $("evTo")?.value;
-    const w = window.open("", "_blank");
-    S.evBusy = "pack"; render();
-    try {
-      const pk = await api("/api/evidence/pack", { method: "POST", body: JSON.stringify({ from, to }) });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([JSON.stringify(pk, null, 1)], { type: "application/json" }));
-      a.download = `evidence-pack-${(pk.client?.id || "client")}-${pk.from}-to-${pk.to}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      if (w) { w.document.open(); w.document.write(packReport(pk)); w.document.close(); }
-      await loadEvidence();
-    } catch (e) { S.evErr = e.message; if (w) w.close(); }
-    S.evBusy = ""; render();
-  }
-  async function checkPack(file) {
-    S.evBusy = "check"; S.check = null; render();
-    try {
-      let pk; try { pk = JSON.parse(await file.text()); } catch { throw new Error("That file isn't valid JSON."); }
-      S.check = await api("/api/evidence/check", { method: "POST", body: JSON.stringify(pk) }); S.check.name = file.name;
-    } catch (e) { S.check = { error: e.message, name: file.name }; }
-    S.evBusy = ""; render();
-  }
-  function packReport(pk) {
-    const t = (rows, head) => `<table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c ?? "–")}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${head.length}">None in this period.</td></tr>`}</tbody></table>`;
-    const i = pk.integrity, lr = pk.log_retention || {}, ex = pk.exposure || {};
-    return `<!doctype html><html><head><meta charset="utf-8"><title>DPDP evidence pack · ${esc(pk.client?.name)} · ${esc(pk.from)} to ${esc(pk.to)}</title><style>
-      body{font:13px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#111;background:#fff;margin:32px auto;max-width:960px;padding:0 16px}
-      h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:26px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px}
-      table{width:100%;border-collapse:collapse;margin:6px 0}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #eee;vertical-align:top}th{background:#f6f6f6;font-weight:600}
-      .mono{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;word-break:break-all}.ok{color:#15803d}.bad{color:#b91c1c}.muted{color:#666}
-      .box{border:1px solid #ddd;border-radius:8px;padding:10px 14px;margin:10px 0}@media print{body{margin:0}}</style></head><body>
-      <h1>DPDP evidence pack: ${esc(pk.client?.name)}</h1>
-      <p class="muted">Period ${esc(pk.from)} to ${esc(pk.to)} · generated ${esc(dt(pk.generated_at))} by ${esc(pk.generated_by)}</p>
-      <div class="box"><b>Pack fingerprint (SHA-256)</b><div class="mono">${esc(pk.fingerprint)}</div><span class="muted">Recorded in the system's ledger. Anyone can check this pack later in Readiness → Evidence &amp; audit → Check a pack; any edit to the file changes the fingerprint.</span></div>
-      <h2>Record integrity</h2>
-      <p class="${i.ok ? "ok" : "bad"}"><b>${i.ok ? "Intact" : `${i.problem_count} problem(s) found`}</b> · checked ${esc(dt(i.checked_at))} · ledger since ${esc(dt(i.since))}: ${num(i.entries)} entries, ${num(i.audit_records)} activity records, ${i.files_tracked} record files.</p>
-      ${i.problems?.length ? `<ul>${i.problems.map((p) => `<li class="bad">${esc(p.text)}</li>`).join("")}</ul>` : ""}
-      <p>Ledger head: <span class="mono">${esc(i.head)}</span></p>
-      ${t((pk.seals || []).map((x) => [x.day, x.head, x.intact === false ? "broken" : "intact"]), ["Daily seal", "Chain fingerprint", "State"])}
-      <h2>Log retention (DPDP Rules 2025, Rule 6(1)(e))</h2>
-      <p>Oldest log line: ${esc(lr.oldest ? dt(lr.oldest) : "–")}${lr.days != null ? ` (${Math.floor(lr.days)} days)` : ""}. ${lr.ok ? `<span class="ok">No rule deletes logs before one year.</span>` : `<span class="bad">${esc((lr.findings || []).join(" "))}</span>`}</p>
-      ${t((lr.rules || []).map((r) => [r.id, r.name, `${Math.round(r.keep_days)} days`, r.action || "minimum (legal hold)", r.enabled ? "on" : "off"]), ["Rule", "Name", "Keep", "Action", "State"])}
-      <h2>DPDP readiness score</h2>
-      ${t((pk.readiness || []).map((r) => [dt(r.at), r.by, `${r.score} (${r.grade})`, (r.areas || []).map((a) => `${a.label}: ${a.score ?? "n/a"}`).join(" · ")]), ["When", "By", "Score", "Areas"])}
-      <h2>Public exposure test (Rule 6(1)(b))</h2>
-      ${ex.last ? `<p>Last test ${esc(dt(ex.last.at))}: score <b>${ex.last.score}</b>; ${ex.last.counts?.tables} tables tested, ${ex.last.counts?.exposed} readable by the public, ${ex.last.counts?.personal} with personal data.</p>
-        ${t((ex.exposed_tables || []).map((x) => [x.table, x.severity, (x.personal || []).map((c) => c.column).join(", ") || "none", x.rows_visible]), ["Readable table", "Severity", "Personal columns", "Rows visible"])}` : "<p>Not run.</p>"}
-      <h2>Breach register (s.8(6), Rule 7)</h2>
-      <p class="muted">Clocks: ${esc(Object.entries(pk.breach?.clocks_hours || {}).map(([k, v]) => `${k.replace(/_/g, " ")} ${v} h`).join(" · "))}</p>
-      ${t((pk.breach?.incidents || []).map((x) => [x.id, x.title, x.status, x.severity, dt(x.aware_at), Object.entries(x.obligations || {}).filter(([, v]) => v).map(([k, v]) => `${k}: ${dt(v?.at || v)}`).join("; ") || "–"]), ["Incident", "Title", "Status", "Severity", "Aware at", "Notifications"])}
-      <h2>Policy records and their versions</h2>
-      ${t(Object.entries(pk.records || {}).map(([k, r]) => [k, `v${r.current_version}`, `${dt(r.updated_at)} by ${r.updated_by}`, (r.versions_in_range || []).map((v) => `v${v.version} ${dt(v.updated_at)} ${v.updated_by}: ${v.change_note}`).join(" | ") || "no changes"]), ["Record", "Current", "Last change", "Changes in this period"])}
-      <h2>Access control (s.8(5))</h2>
-      ${t((pk.access?.users || []).map((u) => [u.email, u.root ? "root" : (u.policies || []).join(", ") || "none", u.active ? "active" : "disabled", dt(u.last_sign_in_at)]), ["User", "Policies", "State", "Last sign-in"])}
-      ${t((pk.access?.policies || []).map((p) => [p.id, p.name, `v${p.version}`, (p.document?.Statement || []).map((st) => `${st.Effect} ${[].concat(st.Action).join(", ")}`).join(" · ")]), ["Policy", "Name", "Version", "Statements"])}
-      <h2>Activity log</h2>
-      <p>${num(pk.activity?.count)} events in this period${pk.activity?.count > 300 ? "; the latest 300 are listed here, all are in the JSON file" : ""}.</p>
-      ${t((pk.activity?.events || []).slice(-300).reverse().map((e) => [dt(e.at), e.user, e.action, e.detail]), ["When", "Who", "Action", "Detail"])}
-      <p class="muted" style="margin-top:28px">${esc(pk.about)} This report is an aid for review, not legal advice.</p>
-      <script>setTimeout(()=>window.print(),400)<\/script></body></html>`;
-  }
-  const ruleText = (r) => `${r.id} ${r.name}: ${Math.round(r.keep_days)} days` + (r.action === "delete" ? ", then delete" : r.action ? `, then ${r.action}` : " minimum");
-  function evidenceHtml() {
-    const v = S.ev;
-    if (!v) return S.evErr ? `<div class="panel cp-empty"><h3>Evidence & audit</h3><p class="cp-red">${esc(S.evErr)}</p></div>` : `<div class="panel cp-empty"><h3>Checking your records…</h3></div>`;
-    const lr = v.log_retention || {}, seals = (v.seals || []).slice(-14).reverse(), lastSeal = (v.seals || []).slice(-1)[0];
-    const today = new Date(), from = new Date(today.getTime() - 90 * 864e5);
-    const c = S.check;
-    return `
-      <section class="panel rd-hero ev-hero">
-        <div class="ev-badge ${v.ok ? "ok" : "bad"}" aria-hidden="true">${v.ok ? "✓" : "✕"}</div>
-        <div class="rd-sum">
-          <span class="us-plan">s.8(5) · Rule 6(1)(e) · tamper-evident records</span>
-          <h3>${v.ok ? "Records are intact" : `${v.problem_count} record(s) were changed outside the system`}</h3>
-          <p class="muted">Every activity record and every change to policies, retention rules, breach detectors and incidents, access, plan, billing, readiness and exposure results is fingerprinted into a hash chain since ${esc(dt(v.since))}. Checked ${esc(dt(v.checked_at))}.</p>
-          ${S.evErr ? `<p class="cp-red">${esc(S.evErr)}</p>` : ""}
-          <div class="ev-head"><span class="muted">Chain fingerprint</span><code title="${esc(v.head)}">${esc(v.head)}</code><button class="btn ghost sm" data-act="ev-copy" data-sql="${esc(v.head)}">Copy</button></div>
-          <div class="rd-acts">${can("readiness:VerifyIntegrity") ? `<button class="btn primary" data-act="ev-verify" ${S.evBusy ? "disabled" : ""}>${S.evBusy === "verify" ? "Verifying…" : "Verify now"}</button>` : ""}</div>
-        </div>
-      </section>
-      ${v.problems?.length ? `<section class="panel ex-sec"><h3>What changed</h3><ul class="rd-finds">${v.problems.map((p) => `<li class="bad"><i>✕</i><div><b>${esc(p.text)}</b>${p.at ? `<small>${esc(dt(p.at))}</small>` : ""}</div></li>`).join("")}</ul><p class="muted">Changes made outside the dashboard (by hand on the server) show up here. Find out who had access, and treat it as a possible breach.</p></section>` : ""}
-      <div class="us-cards">
-        <div class="panel us-card ex-card"><span class="us-clabel">Ledger entries</span><b>${num(v.entries)}</b></div>
-        <div class="panel us-card ex-card"><span class="us-clabel">Activity records</span><b>${num(v.audit_records)}</b></div>
-        <div class="panel us-card ex-card"><span class="us-clabel">Record files tracked</span><b>${num(v.files_tracked)}</b></div>
-        <div class="panel us-card ex-card"><span class="us-clabel">Last daily seal</span><b class="ev-small">${lastSeal ? esc(lastSeal.day) : "after midnight IST"}</b></div>
-      </div>
-      <section class="panel ex-sec"><h3>Log retention <span class="muted">· Rule 6(1)(e): keep logs at least one year</span></h3>
-        <ul class="rd-finds">
-          <li class="${lr.ok ? "ok" : "bad"}"><i>${lr.ok ? "✓" : "✕"}</i><div><b>${lr.ok ? "No retention rule deletes logs before one year." : esc((lr.findings || []).join(" "))}</b>${!lr.ok ? `<span>Change it in Retention → Rules.</span>` : ""}<small>${esc((lr.rules || []).map(ruleText).join(" · ") || "No rule covers the logs.")}</small></div></li>
-          <li class="ok"><i>i</i><div><b>${lr.oldest ? `Oldest log line: ${esc(dt(lr.oldest))} (${Math.floor(lr.days)} days back).` : esc(lr.error || "No log lines yet.")}</b>${lr.days != null && lr.days < 365 ? `<span>Logging began less than a year ago, so a full year can't be shown yet; nothing is set to delete them early.</span>` : ""}</div></li>
-        </ul></section>
-      ${can("readiness:ExportEvidence") ? `<section class="panel ex-sec"><h3>Evidence pack</h3>
-        <p class="muted">One file for an auditor or the Data Protection Board: integrity and seals, log retention, readiness scores, the exposure test, the breach register, policy versions, access, and the activity log for the period. It downloads as JSON and opens as a printable report (save it as PDF). Its fingerprint is recorded in the ledger.</p>
-        <div class="ev-form"><label>From <input type="date" id="evFrom" value="${isoDay(from)}" max="${isoDay(today)}"></label><label>To <input type="date" id="evTo" value="${isoDay(today)}" max="${isoDay(today)}"></label>
-          <button class="btn primary" data-act="ev-pack" ${S.evBusy ? "disabled" : ""}>${S.evBusy === "pack" ? "Building…" : "Create evidence pack"}</button></div>
-        ${(v.exports || []).length ? `<details class="ex-fix"><summary>Packs created (${v.exports.length})</summary><table class="ev-table"><thead><tr><th>When</th><th>By</th><th>Period</th><th>Fingerprint</th></tr></thead><tbody>${v.exports.slice().reverse().map((x) => `<tr><td>${esc(dt(x.at))}</td><td>${esc(x.by)}</td><td>${esc(x.from)} → ${esc(x.to)}</td><td><code>${esc(x.sha.slice(0, 16))}…</code></td></tr>`).join("")}</tbody></table></details>` : ""}
-      </section>` : ""}
-      ${can("readiness:VerifyIntegrity") ? `<section class="panel ex-sec"><h3>Check a pack</h3>
-        <p class="muted">Received a pack and want to know it's genuine and unedited? Choose the JSON file.</p>
-        <label class="btn ghost ev-file">${S.evBusy === "check" ? "Checking…" : "Choose a pack file"}<input type="file" id="evCheck" accept=".json,application/json" hidden></label>
-        ${c ? (c.error ? `<p class="cp-red">${esc(c.name)}: ${esc(c.error)}</p>` : `<ul class="rd-finds ev-check">
-          <li class="${c.unchanged ? "ok" : "bad"}"><i>${c.unchanged ? "✓" : "✕"}</i><div><b>${c.unchanged ? "Unchanged since it was created." : "The file was edited after it was created."}</b><small>${esc(c.name)} · ${esc(c.client || "")} · ${esc(c.from)} → ${esc(c.to)}</small></div></li>
-          <li class="${c.recorded ? "ok" : "bad"}"><i>${c.recorded ? "✓" : "✕"}</i><div><b>${c.recorded ? `Issued by this system on ${esc(dt(c.recorded_at))} by ${esc(c.recorded_by)}.` : "This system has no record of issuing this pack."}</b></div></li></ul>`) : ""}
-      </section>` : ""}
-      <section class="panel ex-sec"><h3>Daily seals</h3>
-        ${seals.length ? `<table class="ev-table"><thead><tr><th>Day</th><th>Chain fingerprint at the end of the day</th><th>State</th></tr></thead><tbody>${seals.map((x) => `<tr><td>${esc(x.day)}</td><td><code>${esc(x.head)}</code></td><td>${x.intact === false ? `<span class="cp-red">broken</span>` : "intact"}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">The first seal is made after midnight IST. Each seal fixes the day's records; a later rewrite of that day no longer matches.</p>`}
-      </section>
-      <section class="panel ex-sec ex-note"><h3>How this works</h3>
-        <p class="muted">Each record gets a SHA-256 fingerprint, and each ledger entry includes the previous entry's fingerprint, so changing, deleting or reordering any past record breaks the chain from that point. Verification re-reads the activity log and the record files and compares them with the ledger. It also runs every day before the seal, and a break is written to the activity log.</p>
-        <p class="muted">To guard against someone rewriting the whole ledger, keep a copy of the chain fingerprint outside this server: it's printed in every evidence pack, or copy it above once a month. Meter totals (usage) aren't part of the chain, because they change every few seconds.</p></section>`;
-  }
   function render() {
     const body = $("rdBody"); if (!body) return;
-    if (S.tab === "evidence") { body.innerHTML = tabs() + evidenceHtml(); return; }
     if (S.tab === "exposure") { body.innerHTML = tabs() + exposureHtml(); return; }
     const r = S.result;
     if (S.busy) { body.innerHTML = tabs() + `<div class="panel cp-empty"><h3>Checking your compliance…</h3><p>${esc(S.step)}</p></div>`; return; }
@@ -384,15 +263,11 @@ const Readiness = (() => {
       </section>`).join("")}</div>`;
   }
   function bind() {
-    $("rdBody").addEventListener("change", (e) => { if (e.target.id === "evCheck" && e.target.files[0]) checkPack(e.target.files[0]); });
     $("rdBody").addEventListener("click", (e) => {
       const t = e.target.closest("[data-rtab]");
-      if (t) { S.tab = t.dataset.rtab; render(); if (S.tab === "exposure" && !S.exp) loadExposure().then(render); if (S.tab === "evidence") loadEvidence().then(render); return; }
+      if (t) { S.tab = t.dataset.rtab; render(); if (S.tab === "exposure" && !S.exp) loadExposure().then(render); return; }
       const b = e.target.closest("[data-act]"); if (!b) return;
       if (b.dataset.act === "exp-run") return runExposure();
-      if (b.dataset.act === "ev-verify") return verifyNow();
-      if (b.dataset.act === "ev-pack") return makePack();
-      if (b.dataset.act === "ev-copy") { navigator.clipboard?.writeText(b.dataset.sql).then(() => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy"), 1500); }); return; }
       if (b.dataset.act === "exp-copy") { navigator.clipboard?.writeText(b.dataset.sql).then(() => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy SQL"), 1500); }); return; }
       if (b.dataset.act === "run") return run();
       if (b.dataset.act === "print") return window.print();
