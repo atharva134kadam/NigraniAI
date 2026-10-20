@@ -1,0 +1,28 @@
+{
+  "_about": "Starting declarations for the data map: which purposes each service and table serves, and the processors register. Edited by the client's admins in Data map → Declarations; detected processors are merged in on every scan.",
+  "services": {
+    "api-gateway": {"purposes": [], "note": "Routes requests; stores no personal data"},
+    "discovery-server": {"purposes": [], "note": "Service registry (Eureka); no personal data"},
+    "authentication-service": {"purposes": ["account"], "note": "Sign-in and sessions"},
+    "customer-service": {"purposes": ["account", "delivery", "marketing"], "note": "Profiles, addresses, wishlist, consent and erasure"},
+    "product-service": {"purposes": ["account"], "note": "Catalogue, stock and customer reviews"},
+    "order-service": {"purposes": ["order_fulfilment", "delivery"], "note": "Orders and returns"},
+    "payment-service": {"purposes": ["payment"], "note": "Payments through Razorpay"},
+    "notification-service": {"purposes": ["order_fulfilment", "payment", "marketing"], "note": "Order, payment and promotional notifications"},
+    "analytics-service": {"purposes": [], "note": "Reports and trends: no purpose declared yet"}
+  },
+  "tables": {
+    "customers": {"purposes": ["account", "order_fulfilment", "delivery", "marketing"]},
+    "auth_users": {"purposes": ["account"]},
+    "auth_refresh_tokens": {"purposes": ["account"]},
+    "order_line_items": {"purposes": ["order_fulfilment"]},
+    "order_status_history": {"purposes": ["order_fulfilment"]},
+    "payment_webhook_events": {"purposes": ["payment"]}
+  },
+  "processors": [
+    {"id": "razorpay", "name": "Razorpay", "role": "Payment gateway", "purposes": ["payment"], "data_categories": ["financial", "contact"], "country": "India", "dpa": null, "notes": ""},
+    {"id": "supabase-shop", "name": "Supabase (shop database)", "role": "Hosts the shop database", "purposes": [], "data_categories": [], "country": "", "dpa": null, "notes": ""},
+    {"id": "supabase-logs", "name": "Supabase (NigraniAI log store)", "role": "Stores application logs", "purposes": [], "data_categories": [], "country": "", "dpa": null, "notes": ""}
+  ],
+  "ignore_tables": ["statistics", "key_column_usage", "columns", "tables", "pg_stat_statements"]
+}

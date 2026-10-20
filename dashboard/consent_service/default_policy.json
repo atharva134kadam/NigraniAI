@@ -1,0 +1,275 @@
+{
+  "name": "ShopSmart consent & purpose policy",
+  "source": "ShopSmart Customer Data Inventory, 15 Oct 2026",
+  "purposes": [
+    {
+      "id": "account",
+      "name": "Account",
+      "description": "Sign-in, profile, wishlist and reviews",
+      "legal_basis": "consent",
+      "consent_type": "notice",
+      "consent_field": "",
+      "data_categories": [
+        "identity",
+        "contact",
+        "customer content"
+      ]
+    },
+    {
+      "id": "order_fulfilment",
+      "name": "Order fulfilment",
+      "description": "Placing and tracking orders, order updates",
+      "legal_basis": "consent",
+      "consent_type": "notice",
+      "consent_field": "",
+      "data_categories": [
+        "transaction",
+        "contact"
+      ]
+    },
+    {
+      "id": "delivery",
+      "name": "Delivery",
+      "description": "Saved delivery addresses and recipients",
+      "legal_basis": "consent",
+      "consent_type": "notice",
+      "consent_field": "",
+      "data_categories": [
+        "address",
+        "contact"
+      ]
+    },
+    {
+      "id": "payment",
+      "name": "Payment",
+      "description": "Payments via Razorpay, refunds, payment updates",
+      "legal_basis": "consent",
+      "consent_type": "notice",
+      "consent_field": "",
+      "data_categories": [
+        "financial"
+      ]
+    },
+    {
+      "id": "marketing",
+      "name": "Marketing",
+      "description": "Promotional messages to customers who opted in",
+      "legal_basis": "consent",
+      "consent_type": "opt_in",
+      "consent_field": "marketing",
+      "data_categories": [
+        "contact"
+      ]
+    }
+  ],
+  "activities": [
+    {
+      "id": "orders",
+      "name": "Orders",
+      "table": "customer_orders",
+      "principal_column": "customer_id",
+      "time_column": "created_at",
+      "type_column": "",
+      "purpose": "order_fulfilment",
+      "type_map": {},
+      "principal_via": null
+    },
+    {
+      "id": "payments",
+      "name": "Payments",
+      "table": "payments",
+      "principal_column": "customer_id",
+      "time_column": "created_at",
+      "type_column": "",
+      "purpose": "payment",
+      "type_map": {},
+      "principal_via": {
+        "column": "order_id",
+        "table": "customer_orders",
+        "key": "id",
+        "principal_column": "customer_id"
+      }
+    },
+    {
+      "id": "addresses",
+      "name": "Saved addresses",
+      "table": "customer_addresses",
+      "principal_column": "customer_id",
+      "time_column": "created_at",
+      "type_column": "",
+      "purpose": "delivery",
+      "type_map": {},
+      "principal_via": null
+    },
+    {
+      "id": "wishlist",
+      "name": "Wishlist",
+      "table": "customer_wishlist",
+      "principal_column": "customer_id",
+      "time_column": "added_at",
+      "type_column": "",
+      "purpose": "account",
+      "type_map": {},
+      "principal_via": null
+    },
+    {
+      "id": "reviews",
+      "name": "Reviews",
+      "table": "product_reviews",
+      "principal_column": "customer_id",
+      "time_column": "created_at",
+      "type_column": "",
+      "purpose": "account",
+      "type_map": {},
+      "principal_via": null
+    },
+    {
+      "id": "notifications",
+      "name": "Notifications",
+      "table": "notifications",
+      "principal_column": "recipient_id",
+      "time_column": "created_at",
+      "type_column": "type",
+      "purpose": "",
+      "type_map": {
+        "ORDER": "order_fulfilment",
+        "PAYMENT": "payment",
+        "PROMOTION": "marketing"
+      },
+      "principal_via": null
+    }
+  ],
+  "principal": {
+    "table": "customers",
+    "id_column": "id"
+  },
+  "field_map": {
+    "notice_version": "consent_notice_version(2)",
+    "consented_at": "2.Terms_consented_at",
+    "consent_updated_at": "2.Terms_updated_at(2)",
+    "terms_accepted": "Terms_and_Condition",
+    "terms_accepted_at": "Terms_accepted_at_Time",
+    "terms_version": "Terms_version",
+    "marketing": "marketing_consent(optional)",
+    "deletion_requested_at": "deletion_requested_at",
+    "erased_at": "erased_at"
+  },
+  "notices": [
+    {
+      "id": "privacy_notice",
+      "name": "Privacy notice",
+      "field": "notice_version",
+      "current_version": "v1-2026-10",
+      "required": true
+    },
+    {
+      "id": "terms",
+      "name": "Terms & Conditions",
+      "field": "terms_version",
+      "current_version": "2026-10-15",
+      "required": true
+    }
+  ],
+  "inventory": {
+    "customers": [
+      "id",
+      "auth_user_id",
+      "name",
+      "email",
+      "phone",
+      "created_at",
+      "marketing_consent",
+      "consent_notice_version",
+      "consented_at",
+      "consent_updated_at",
+      "deletion_requested_at",
+      "erased_at"
+    ]
+  },
+  "rules": [
+    {
+      "id": "R1",
+      "type": "notice_required",
+      "name": "Processing without an accepted privacy notice",
+      "enabled": true,
+      "severity": "high",
+      "dpdp_ref": "DPDP Act 2023 \u00b7 s.5, s.6",
+      "params": {
+        "notice": "privacy_notice"
+      }
+    },
+    {
+      "id": "R2",
+      "type": "before_consent",
+      "name": "Processing before consent was given",
+      "enabled": true,
+      "severity": "high",
+      "dpdp_ref": "DPDP Act 2023 \u00b7 s.6(1)",
+      "params": {
+        "grace_seconds": 60
+      }
+    },
+    {
+      "id": "R3",
+      "type": "opt_in_required",
+      "name": "Opt-in purpose without consent",
+      "enabled": true,
+      "severity": "critical",
+      "dpdp_ref": "DPDP Act 2023 \u00b7 s.6(1), s.6(6)",
+      "params": {}
+    },
+    {
+      "id": "R4",
+      "type": "undeclared_purpose",
+      "name": "Processing for an undeclared purpose",
+      "enabled": true,
+      "severity": "high",
+      "dpdp_ref": "DPDP Act 2023 \u00b7 s.5(1), s.6(1)",
+      "params": {}
+    },
+    {
+      "id": "R5",
+      "type": "notice_outdated",
+      "name": "Consent given to an outdated notice",
+      "enabled": true,
+      "severity": "medium",
+      "dpdp_ref": "DPDP Rules 2025 \u00b7 Rule 3",
+      "params": {
+        "notice": "terms"
+      }
+    },
+    {
+      "id": "R6",
+      "type": "after_erasure",
+      "name": "Processing after an erasure request",
+      "enabled": true,
+      "severity": "critical",
+      "dpdp_ref": "DPDP Act 2023 \u00b7 s.8(7), s.12(3)",
+      "params": {
+        "grace_seconds": 120
+      }
+    },
+    {
+      "id": "R7",
+      "type": "unknown_principal",
+      "name": "Processing not linked to a known data principal",
+      "enabled": true,
+      "severity": "medium",
+      "dpdp_ref": "DPDP Act 2023 \u00b7 s.8(1)",
+      "params": {}
+    },
+    {
+      "id": "R8",
+      "type": "inventory_drift",
+      "name": "Consent records differ from the declared inventory",
+      "enabled": true,
+      "severity": "medium",
+      "dpdp_ref": "DPDP Act 2023 \u00b7 s.5, s.8(1)",
+      "params": {
+        "tables": [
+          "customers"
+        ]
+      }
+    }
+  ]
+}
