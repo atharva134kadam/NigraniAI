@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+dashboard/consent_service/data/
+dashboard/consent_service/.pii-venv/
+dashboard/deploy/target.env
+website/dist/
