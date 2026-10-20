@@ -64,10 +64,11 @@ _Status as of 18 Oct 2026._
 | **Log Telemetry** | Live structured log feed across all services, with the personal data each line touches shown inline |
 | **Consent & Purpose** | Checks every processing event for consent and a declared purpose; 8 editable, versioned rules; customer timelines |
 | **Retention** | Retention schedule measured on live data: past deadline, due soon, legal holds, erasure checklists, inactivity, worklists |
-| **Breach Response** | 7 editable detectors + a live ML anomaly model (Isolation Forest), signal triage, breach register, Rule 7 / CERT-In clocks and notice drafts |
+| **Breach Response** | 7 editable detectors + the ML anomaly model's signals, signal triage, breach register, Rule 7 / CERT-In clocks and notice drafts |
 | **AI Assistant** | Chat grounded in the dashboard's own numbers (Groq, `openai/gpt-oss-120b`): explains, investigates, gives fixes and prevention |
 | **Data map** | Live map of personal data: which tables hold it, which services use it, for which purposes, who receives it; inventory, record of processing (CSV / PDF) and gap analysis |
 | **Readiness score** | 0–100 DPDP readiness score and grade from eight areas, each finding citing the law and giving a fix; open findings ranked by how much each could raise the score, with links to the section that fixes them and ✦ Ask AI on each |
+| **Anomaly detection** | The ML model as its own section: services × time heatmap, a full explanation for every anomaly (what, which measures, how it was detected, likely cause, timeline, sample lines), learning from your reviews, backtest by sensitivity, settings with a test run, ✦ Ask AI |
 | **Evidence & audit** | Its own section: tamper-evident records (hash chain, daily seals), a visual chain timeline, protected-record list, evidence packs for auditors, pack checking (drag and drop), and ✦ Ask AI on the status, any problem or a pack check |
 | **Access management** | AWS IAM-style for ShopSmart's staff: 37 actions, JSON policies with Allow/Deny, wildcards and conditions, groups, simulator |
 | **Usage & plan** | Usage meters (log lines, AI, lookups, users…), what the plan includes and what's left, per-person caps, alerts |
@@ -335,7 +336,7 @@ disclosure (s.2(u)), so outages and failed writes are watched too.
 | Signals | Every signal with severity, size, time and breach type; review shows why it matters, first checks and the log lines; open an incident, add to one, or dismiss with a reason (undo) |
 | Breach register | Every incident with status, severity, awareness time, next deadline, one dot per obligation; search; CSV |
 | Incident | Suspected → Confirmed → Contained → Closed (or Not a breach); four obligation cards with countdowns and "Mark as sent"; Board extension; the record; notices; evidence; activity log |
-| Anomaly model | Model status, score chart of every slice against the cut-off, what it learned per service, how it works, settings with a live preview |
+| Anomaly model ↗ | Opens the **Anomaly detection** section (its own sidebar item, below). ML signals here show their summary, cause and a *Full explanation* link |
 | Detectors & settings | Detectors as sentences with switches; edit conditions, measure, threshold, window, grouping, type, severity, auto-open with a live preview; 6 templates; clock hours; notice contact; look-back; versions |
 
 **Response clocks** (start at "Became aware"):
@@ -370,25 +371,46 @@ Detectors count matching lines (or sum a field such as rows read) in a sliding w
 overlapping windows merge. Auto-open detectors start an incident the first time; repeats join the
 open incident.
 
-**Anomaly model (machine learning).** Unsupervised, so it needs no labelled breaches.
+**Anomaly detection (machine learning, v2)**: its own section (`frontend/anomaly.js`, sidebar item
+*Anomaly detection*, needs `breach:ReadSignals`). Unsupervised, so it needs no labelled breaches.
 
-1. **Slice:** each service's logs are cut into 10-minute slices (5–60 configurable) with 10 measures:
-   HTTP requests, data operations, personal-data events, credential events, rejected sign-ins
-   (401/403), PII in log text, errors, warnings, 5xx, p95 response time.
-2. **Learn normal per service:** `log(1+x)`, then `z = (x − median) / max(1.4826·MAD, 0.5)`, so each
-   service is judged against itself; only active slices count.
-3. **Score:** Isolation Forest (Liu, Ting & Zhou, 2008) in plain Python: 150 trees, 256-slice samples,
-   depth 8, seed 7; `s = 2^(−E[h(x)]/c(ψ))` (≈0.5 ordinary, →1 unusual).
-4. **Explain:** a slice is an anomaly when its score reaches the cut-off (low 0.72 / medium 0.67 /
-   high 0.62) **and** a measure is ≥ 3 MADs above normal by a meaningful amount (e.g. ≥ 5 rejected
-   sign-ins, ≥ 1 s p95). Consecutive slices merge into one signal with up to 4 reasons ("45 warnings,
-   usually 0, 95% of slices ≤ 8 → 46×"), and other services unusual at the same moment (often a deploy).
-5. **Live:** new lines are scored every ~10 s, including the slice in progress ("Happening now");
-   normal is re-learned every 10 min from finished slices, at once on a settings change, or with
-   Retrain now. Training ~0.3 s, scoring ~0.2 s, first window read ~20 s in the background.
+1. **Slice:** each service's logs are cut into 10-minute slices (5–60 configurable) with **13 measures**:
+   HTTP requests, data operations, personal-data events, credential events, rejected sign-ins (401/403),
+   PII in log text, errors, warnings, 5xx, p95 response time, and three rates: error rate, share of
+   requests rejected, share of lines touching personal data (a rate needs ≥ 8–20 lines to count).
+2. **Learn normal per service and time of day:** `log(1+x)`, then `z = (x − median) / max(1.4826·MAD, 0.5)`
+   against that service's **day (08–20 IST) or night** normal, falling back to the whole-day normal while a
+   time of day has under max(6, min_history/2) slices. A 3 AM burst is judged against nights.
+3. **Score:** Isolation Forest (Liu, Ting & Zhou, 2008) in plain Python, trees stored as flat arrays
+   (iterative scoring): 150 trees, 256-slice samples, depth 8, seed 7; `s = 2^(−E[h(x)]/c(ψ))`.
+   Scores are cached per slice until the slice changes or normal is re-learned, so the live re-score only
+   works on new slices (0.24 s → 0.10 s on the 7-day window, 1,242 slices).
+4. **Gate:** an anomaly needs the score ≥ cut-off (low 0.72 / medium 0.67 / high 0.62) **and** a measure
+   ≥ 3 MADs above normal by a meaningful amount. Consecutive slices merge into one anomaly.
+5. **Explain** (stored on each anomaly): a plain-words `summary`; up to 4 `reasons` (value, usual, p95,
+   spreads, × usual); `contributions`, which measures did the isolating (each split on the slice's path,
+   weighted 1/depth and by how quickly the tree isolated it, times distance above normal); `checks`, the
+   detection trail (score, above normal, amount, history, time-of-day normal, your reviews); a likely
+   `cause` with confidence and what to check (credential stuffing, PII in logs, bulk personal-data read,
+   credential activity, data-operation volume, service failure, traffic spike, outage across services,
+   **start-up burst** after ≥ 1 h of silence); a `timeline` of the service around it; sample line ids.
+6. **Learn from reviews:** dismissing an ML anomaly stores its pattern (service, leading measure, time of
+   day) with the triage record. A later anomaly with the same pattern is **held back** (listed under
+   *Held back*, not raised) unless it scores ≥ 0.06 above the cut-off.
+7. **Backtest and quality:** each run also counts what low / medium / high would have raised on the same
+   window (alerts per day), and the Model tab shows reviewed, became incidents, dismissed, held back.
+8. **Live:** new lines scored every ~10 s (slice in progress included); normal re-learned every 10 min,
+   on a settings change, or with *Retrain now*. When the window exceeds 100,000 lines the newest are kept.
 
-Severity follows the score; the breach type follows the main reason. Auto-open is off by default
-because "unusual" isn't "breach". Settings are versioned with the detectors (`anomaly`).
+**Page:** Overview (live status, *Right now* score, a services × hours heatmap of the last 72 h with
+anomalies outlined and clickable, latest anomalies), Anomalies (filters: to review, all, high, dismissed,
+held back; each opens a full report: summary, what was unusual, what made the model isolate it, how it was
+detected, likely cause and what to check, timeline, sample log lines, review buttons and ✦ Ask AI), How the
+model works (six steps, backtest, quality from your reviews, score distribution with the cut-off, what it
+learned per service by day and night, performance) and Settings (sensitivity with alerts/day, slice, history,
+auto-open; *Test on recent logs* before saving; saved as a new breach-policy version with a note). Reviews go
+through Breach Response, so Signals stays the single triage queue. Auto-open stays off by default because
+"unusual" isn't "breach".
 
 ### 5.6 AI Assistant
 

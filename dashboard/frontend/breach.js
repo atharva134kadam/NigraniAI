@@ -323,7 +323,8 @@ const Breach = (() => {
     const pos = (v) => `${((Math.log1p(v) / top) * 100).toFixed(1)}%`;
     const gauge = Math.min(100, Math.max(0, ((s.score - 0.3) / 0.55) * 100));
     return `<div class="ml-why">
-      <div class="ml-whyhead"><h5>Why the model flagged this</h5>
+      ${s.summary ? `<p class="ml-sum">${esc(s.summary)}</p>` : ""}
+      <div class="ml-whyhead"><h5>Why the model flagged this${s.cause ? ` · ${esc(s.cause.label)}` : ""}</h5>
         <div class="ml-score" title="Isolation Forest anomaly score: 0.5 is ordinary, close to 1 is very unusual. Cut-off at this sensitivity: ${cut}">
           <span>Anomaly score</span><b>${Number(s.score).toFixed(2)}</b><span class="ml-gauge"><i style="width:${gauge.toFixed(0)}%"></i><em style="left:${(((cut - 0.3) / 0.55) * 100).toFixed(0)}%"></em></span></div></div>
       <div class="ml-reasons">${rs.map((r) => `<div class="ml-reason">
@@ -331,6 +332,7 @@ const Breach = (() => {
         <div class="ml-bar" aria-hidden="true"><span class="ml-normal" style="width:${pos(r.p95)}"></span><span class="ml-med" style="left:${pos(r.usual)}"></span><span class="ml-obs" style="left:${pos(r.value)}"></span></div>
         <span class="ml-times">${r.times >= 10 ? Math.round(r.times) : r.times}× usual</span></div>`).join("")}</div>
       <p class="ml-legend"><span><i class="ml-k normal"></i>usual range (95% of slices)</span><span><i class="ml-k obs"></i>this stretch</span><span>${plural(s.slices || 1, "slice")} of ${esc(AN().bucket_minutes)} min · ${plural(s.events, "log line")}</span></p>
+      <button class="btn ghost sm" data-an-open="${esc(s.id)}">Full explanation: how it was detected →</button>
       ${(s.together || []).length ? `<p class="ml-together"><b>Also unusual at the same time:</b> ${s.together.map(esc).join(", ")}. Several services changing together usually means a deploy, restart or shared outage, not an attack on one service.</p>` : ""}
     </div>`;
   }
@@ -1003,6 +1005,7 @@ Date: ${today} (IST)`;
     const t = (s) => e.target.closest(s);
     let b;
     if (t("[data-go-telemetry-unmasked]")) return Telemetry.openUnmasked();
+    if ((b = t("[data-an-open]"))) return Anomaly.open(b.dataset.anOpen);
     if ((b = t("[data-goto]"))) { S.tab = b.dataset.goto; S.sel = null; return render(); }
     if ((b = t("[data-inc]"))) { if (!b.dataset.inc) return; S.tab = "incidents"; S.sel = b.dataset.inc; S.oblEdit = null; if (S.dirty?.id !== S.sel) S.dirty = null; render(); return window.scrollTo(0, 0); }
     if ((b = t("[data-sig-go]"))) { S.tab = "signals"; S.sigFilter = "new"; S.openSig = b.dataset.sigGo; render(); return $(`sig-${b.dataset.sigGo}`)?.scrollIntoView({ block: "center" }); }
@@ -1123,7 +1126,7 @@ Date: ${today} (IST)`;
     }
   }
   function bind() {
-    $("brTabs").onclick = (e) => { const b = e.target.closest("[data-tab]"); if (b) { S.tab = b.dataset.tab; S.sel = null; render(); } };
+    $("brTabs").onclick = (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; if (b.dataset.tab === "model") return show("anomaly"); S.tab = b.dataset.tab; S.sel = null; render(); };
     $("brRefresh").onclick = () => loadAll({ withPolicy: !S.draft });
     $("brReport").onclick = openReport;
     $("brSave").onclick = save;
@@ -1143,6 +1146,12 @@ Date: ${today} (IST)`;
 
   return {
     show() { if (!S.started) { S.started = true; bind(); } if (!S.policy || S.error) loadAll(); else render(); },
+    // For the Anomaly detection section: review state and triage go through here, so Signals stays the one place for it.
+    async ensure() { if (!S.scan) { for (let i = 0; i < 150 && S.busy; i++) await new Promise((r) => setTimeout(r, 200)); if (!S.scan) await loadAll({ withPolicy: !S.policy }); } },
+    triageOf: () => S.scan?.triage || {},
+    openSignal(id) { S.tab = "signals"; S.sigDetector = ML; S.sigFilter = "all"; S.openSig = id; S.sel = null; show("breach"); setTimeout(() => $(`sig-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 500); },
+    dismiss: (id, reason) => triage(id, "dismiss", { reason }, "Dismissed."),
+    reopen: (id) => triage(id, "reopen", {}, "Back in review."),
     tick(ticks) {
       const a = document.activeElement;
       const editing = S.editDet || S.newDet || S.picking || S.oblEdit || S.dirty || $("brDialog").open || ($("view-breach").contains(a) && /SELECT|INPUT|TEXTAREA/.test(a.tagName));

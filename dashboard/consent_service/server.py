@@ -751,14 +751,20 @@ ML_FEATURES = [  # key, label, category it points to, smallest value worth flagg
     ("warnings", "warnings", "integrity", 5),
     ("server_errors", "server errors (5xx)", "availability", 3),
     ("latency_p95", "response time p95 (ms)", "availability", 1000),
+    # v2 ratios: catch "few requests, but nearly all failing" that the counts alone miss
+    ("error_rate", "share of lines that are errors (%)", "availability", 20),
+    ("auth_fail_rate", "share of requests rejected (%)", "confidentiality", 25),
+    ("personal_share", "share of lines touching personal data (%)", "confidentiality", 50),
 ]
 ML_KEYS = [f[0] for f in ML_FEATURES]
+ML_RATIO = {"error_rate": ("errors", "lines", 10), "auth_fail_rate": ("auth_failures", "requests", 8), "personal_share": ("personal_data", "lines", 20)}
 ML_COLS = "id,logged_at,ingested_at,service,level,kind,http_status,data_category,risk_indicators,duration_ms"
 ML_ROW_CAP = 100000
 ML_TREES, ML_SAMPLE, ML_Z = 150, 256, 3.0
+ML_HOLD_MARGIN = 0.06      # a pattern you dismissed before is held back unless it scores this far above the cut-off
 ML_DETECTOR = {
     "id": ML_ID, "name": "Unusual activity (ML model)", "source": "activity_logs", "category": "confidentiality", "severity": "medium",
-    "why": "The anomaly model learned what normal looks like for each service from the logs, and this stretch is far outside it. "
+    "why": "The anomaly model learned what normal looks like for each service, by time of day, from the logs, and this stretch is far outside it. "
            "Nobody wrote a rule for it, so it can catch patterns the detectors miss: a quiet scrape of customer records, "
            "unusual sign-in failures, or a service misbehaving.",
     "steps": ["Read the reasons: which measures are above normal, and by how much", "Open the log lines and check who or what caused them",
@@ -791,9 +797,11 @@ def ml_detector(s=None):
 
 
 def ml_fetch(flt, token, parallel=True):
-    """Compact columns of activity_logs matching `flt`; pages fetched 6 at a time (or one at a
-    time for the small incremental reads)."""
-    base = [("select", ML_COLS), flt, ("order", "ingested_at.asc,id.asc"), ("limit", "1000")]
+    """Compact columns of activity_logs matching `flt`. The full window is read newest first (6 pages
+    at a time), so when it is capped the model learns from the most recent lines, not the oldest;
+    small incremental reads go oldest first, one page at a time."""
+    order = "ingested_at.desc,id.desc" if parallel else "ingested_at.asc,id.asc"
+    base = [("select", ML_COLS), flt, ("order", order), ("limit", "1000")]
     rows, off, truncated, n = [], 0, False, 6 if parallel else 1
     with ThreadPoolExecutor(max_workers=n) as pool:
         while True:
@@ -806,7 +814,13 @@ def ml_fetch(flt, token, parallel=True):
             if any(len(p) < 1000 for p in pages):
                 break
             off += n * 1000
-    return rows, truncated
+    return (rows[::-1] if parallel else rows), truncated
+
+
+def ml_part(ts):
+    """Time of day a slice belongs to, in IST: 'day' 08:00-20:00, otherwise 'night'."""
+    h = datetime.fromtimestamp(ts, IST_TZ).hour
+    return "day" if 8 <= h < 20 else "night"
 
 
 def ml_features(rows, bucket_s):
@@ -837,6 +851,10 @@ def ml_features(rows, bucket_s):
         v.sort()
         agg[k]["latency_p95"] = float(v[int(0.95 * (len(v) - 1))][0])
         ids[k]["latency_p95"] = [i for _, i in v[-25:]]
+    for k, a in agg.items():
+        for f, (num_f, den_f, _) in ML_RATIO.items():
+            a[f] = round(100.0 * a[num_f] / a[den_f], 1) if a[den_f] else 0.0
+            ids[k][f] = ids[k][num_f]
     return agg, ids
 
 
@@ -845,40 +863,70 @@ def _c(n):   # average path length of an unsuccessful binary-search-tree search 
 
 
 class IsolationForest:
-    """Isolation Forest: random axis-aligned splits; anomalies are isolated in fewer splits."""
+    """Isolation Forest (Liu, Ting & Zhou, 2008): random axis-aligned splits; anomalies are isolated in
+    fewer splits. Each tree is stored as flat arrays (feature, threshold, left, right, leaf size), so
+    scoring is a tight loop with no recursion. `explain` reports which features did the isolating."""
 
     def __init__(self, trees=ML_TREES, sample=ML_SAMPLE, seed=7):
         self.n, self.psi, self.rng, self.trees = trees, sample, random.Random(seed), []
 
-    def _grow(self, pts, depth, limit):
-        if depth >= limit or len(pts) <= 1:
-            return len(pts)
-        dims = len(pts[0])
-        for _ in range(dims):   # pick a feature that actually varies in this node
-            j = self.rng.randrange(dims)
-            lo, hi = min(p[j] for p in pts), max(p[j] for p in pts)
-            if hi > lo:
-                break
-        else:
-            return len(pts)
-        s = self.rng.uniform(lo, hi)
-        return (j, s, self._grow([p for p in pts if p[j] < s], depth + 1, limit), self._grow([p for p in pts if p[j] >= s], depth + 1, limit))
+    def _grow(self, pts, limit):
+        feat, thr, left, right, size = [], [], [], [], []
+        stack = [(pts, 0, None, None)]
+        while stack:
+            p, depth, parent, side = stack.pop()
+            i = len(feat)
+            feat.append(-1); thr.append(0.0); left.append(-1); right.append(-1); size.append(len(p))
+            if parent is not None:
+                (left if side == 0 else right)[parent] = i
+            if depth >= limit or len(p) <= 1:
+                continue
+            dims = len(p[0])
+            for _ in range(dims):   # pick a feature that actually varies in this node
+                j = self.rng.randrange(dims)
+                lo, hi = min(q[j] for q in p), max(q[j] for q in p)
+                if hi > lo:
+                    break
+            else:
+                continue
+            s = self.rng.uniform(lo, hi)
+            feat[i], thr[i] = j, s
+            stack.append(([q for q in p if q[j] >= s], depth + 1, i, 1))
+            stack.append(([q for q in p if q[j] < s], depth + 1, i, 0))
+        return (feat, thr, left, right, [_c(n) for n in size])
 
     def fit(self, X):
         self.psi = min(self.psi, len(X))
         limit = math.ceil(math.log2(max(self.psi, 2)))
-        self.trees = [self._grow(self.rng.sample(X, self.psi), 0, limit) for _ in range(self.n)]
+        self.trees = [self._grow(self.rng.sample(X, self.psi), limit) for _ in range(self.n)]
+        self.norm = _c(self.psi) or 1
         return self
 
     def score(self, x):
         total = 0.0
-        for t in self.trees:
-            d = 0
-            while isinstance(t, tuple):
-                t = t[2] if x[t[0]] < t[1] else t[3]
+        for feat, thr, left, right, cn in self.trees:
+            i = d = 0
+            while feat[i] >= 0:
+                i = left[i] if x[feat[i]] < thr[i] else right[i]
                 d += 1
-            total += d + _c(t)
-        return 2 ** (-(total / len(self.trees)) / (_c(self.psi) or 1))
+            total += d + cn[i]
+        return 2 ** (-(total / len(self.trees)) / self.norm)
+
+    def explain(self, x):
+        """Share of the isolating work done by each feature: every split on the path counts, earlier
+        splits more (1 / depth), and short paths (the trees that isolated x quickly) count most."""
+        w = [0.0] * len(x)
+        for feat, thr, left, right, cn in self.trees:
+            i, d, path = 0, 0, []
+            while feat[i] >= 0:
+                path.append((feat[i], d))
+                i = left[i] if x[feat[i]] < thr[i] else right[i]
+                d += 1
+            quick = self.norm / max(d + cn[i], 1.0)
+            for j, dj in path:
+                w[j] += quick / (dj + 1)
+        tot = sum(w) or 1.0
+        return [v / tot for v in w]
 
 
 def _q(vals, p):
@@ -887,40 +935,90 @@ def _q(vals, p):
 
 
 def ml_fit(cfg, agg, keys):
-    """Learn normal: per-service median / MAD of every measure, and the Isolation Forest, from
-    completed slices only (the slice in progress is scored, never learned from)."""
+    """Learn normal from completed slices only (the slice in progress is scored, never learned from):
+    per service and per time of day (day / night, IST) the median and spread (MAD) of every measure,
+    falling back to the whole-day normal while a time of day has too little history; then the
+    Isolation Forest on the scaled slices."""
     X = {k: [math.log1p(agg[k][f]) for f in ML_KEYS] for k in keys}
-    by_svc = {}
+    groups = {}
     for k in keys:
-        by_svc.setdefault(k[0], []).append(k)
-    base = {}
-    for svc, ks in by_svc.items():
+        groups.setdefault((k[0], "all"), []).append(k)
+        groups.setdefault((k[0], ml_part(k[1])), []).append(k)
+    need = max(6, cfg["min_history"] // 2)
+    base, typical = {}, {}
+    for g, ks in groups.items():
+        if g[1] != "all" and len(ks) < need:
+            continue
         cols = list(zip(*(X[k] for k in ks)))
         med = [statistics.median(c) for c in cols]
         mad = [max(1.4826 * statistics.median(abs(v - m) for v in c), 0.5) for c, m in zip(cols, med)]
-        base[svc] = (med, mad)
-    Z = [[(X[k][j] - base[k[0]][0][j]) / base[k[0]][1][j] for j in range(len(ML_KEYS))] for k in keys]
-    typical = {svc: {f: (round(math.expm1(base[svc][0][j]), 1), round(_q([agg[k][f] for k in ks], 0.95), 1))
-                     for j, f in enumerate(ML_KEYS)} for svc, ks in by_svc.items()}
-    return {"base": base, "forest": IsolationForest().fit(Z), "counts": {svc: len(ks) for svc, ks in by_svc.items()},
-            "typical": typical, "fitted_at": now_iso(), "slices": len(keys), "bucket_minutes": cfg["bucket_minutes"]}
+        base[g] = (med, mad)
+        typical[g] = {f: (round(math.expm1(med[j]), 1), round(_q([agg[k][f] for k in ks], 0.95), 1)) for j, f in enumerate(ML_KEYS)}
+    Z = [_ml_z(base, k, X[k]) for k in keys]
+    return {"base": base, "forest": IsolationForest().fit(Z), "counts": {g: len(ks) for g, ks in groups.items()},
+            "typical": typical, "fitted_at": now_iso(), "slices": len(keys), "bucket_minutes": cfg["bucket_minutes"], "cache": {}}
 
 
-def ml_train(cfg, rows, truncated, since, fit=None):
-    """Score every slice in the window, including the one in progress, against the learned
-    normal (`fit`); fit first when none is given. Returns (result, fit)."""
+def _ml_group(base, k):
+    """The normal a slice is compared with: its service at that time of day, else the whole day."""
+    g = (k[0], ml_part(k[1]))
+    return g if g in base else (k[0], "all")
+
+
+def _ml_z(base, k, x):
+    med, mad = base[_ml_group(base, k)]
+    return [(x[j] - med[j]) / mad[j] for j in range(len(ML_KEYS))]
+
+
+def _ml_runs(flagged, by_svc, bucket_s):
+    """Consecutive flagged slices of a service (gap of at most one slice) become one run."""
+    out = []
+    for svc, ks in by_svc.items():
+        run = []
+        for k in ks + [None]:
+            if k in flagged and (not run or k[1] - run[-1][1] <= 2 * bucket_s):
+                run.append(k)
+                continue
+            if run:
+                out.append((svc, run))
+            run = [k] if k in flagged else []
+    return out
+
+
+def _ml_flag(keys, score, Z, agg, counts, cfg, cut):
+    flagged = {}
+    for k in keys:
+        if score[k] < cut or counts.get((k[0], "all"), 0) < cfg["min_history"]:
+            continue
+        reasons = []
+        for j, (f, _, _, floor) in enumerate(ML_FEATURES):
+            if Z[k][j] < ML_Z or agg[k][f] < floor:
+                continue
+            if f in ML_RATIO and agg[k][ML_RATIO[f][1]] < ML_RATIO[f][2]:
+                continue   # a ratio of a handful of lines is noise
+            reasons.append(j)
+        if reasons:
+            flagged[k] = sorted(reasons, key=lambda j: -Z[k][j])
+    return flagged
+
+
+def ml_train(cfg, rows, truncated, since, fit=None, feedback=None, triaged=()):
+    """Score every slice in the window, including the one in progress, against the learned normal
+    (`fit`); fit first when none is given. Scores are cached per slice until the slice changes or
+    normal is re-learned, so the live re-score every 10 s only works on new slices. `feedback` is
+    {(service, feature, part): count} from dismissed anomalies. Returns (result, fit)."""
     started = time.time()
     bucket_s = cfg["bucket_minutes"] * 60
     agg, ids = ml_features(rows, bucket_s)
     keys = sorted(agg)
     live_b = int(time.time()) // bucket_s * bucket_s
-    out = {"since": since, "lines": len(rows), "truncated": truncated, "slices": len(keys),
+    out = {"since": since, "lines": len(rows), "truncated": truncated, "slices": len(keys), "version": 2,
            "bucket_minutes": cfg["bucket_minutes"], "sensitivity": cfg["sensitivity"], "cutoff": SENSITIVITY[cfg["sensitivity"]],
-           "features": [{"key": k, "label": l, "category": c} for k, l, c, _ in ML_FEATURES], "algorithm":
-           f"Isolation Forest, {ML_TREES} trees, {ML_SAMPLE}-slice samples, per-service robust scaling (median / MAD)",
-           "services": [], "signals": [], "series": [], "scanned": len(rows), "scored_at": now_iso(),
+           "features": [{"key": k, "label": l, "category": c, "floor": fl} for k, l, c, fl in ML_FEATURES], "algorithm":
+           f"Isolation Forest, {ML_TREES} trees, {ML_SAMPLE}-slice samples, {len(ML_KEYS)} measures, per-service and time-of-day robust scaling (median / MAD)",
+           "services": [], "signals": [], "held": [], "series": [], "scanned": len(rows), "scored_at": now_iso(),
            "live_slice": datetime.fromtimestamp(live_b, timezone.utc).isoformat(),
-           "live_lines": int(sum(agg[k]["lines"] for k in keys if k[1] == live_b))}
+           "live_lines": int(sum(agg[k]["lines"] for k in keys if k[1] == live_b)), "z_threshold": ML_Z, "min_history": cfg["min_history"]}
     if fit is None:
         done = [k for k in keys if k[1] < live_b]
         if len(done) < 2 * cfg["min_history"]:
@@ -930,74 +1028,187 @@ def ml_train(cfg, rows, truncated, since, fit=None):
         fit = ml_fit(cfg, agg, done)
     out["trained_at"] = out["fitted_at"] = fit["fitted_at"]
     out["fit_slices"] = fit["slices"]
-    base, typical, counts = fit["base"], fit["typical"], fit["counts"]
-    keys = [k for k in keys if k[0] in base]          # a service first seen after the last fit waits for the next one
-    Z = {k: [(math.log1p(agg[k][f]) - base[k[0]][0][j]) / base[k[0]][1][j] for j, f in enumerate(ML_KEYS)] for k in keys}
-    score = {k: fit["forest"].score(Z[k]) for k in keys}
+    base, typical, counts, cache = fit["base"], fit["typical"], fit["counts"], fit["cache"]
+    keys = [k for k in keys if (k[0], "all") in base]   # a service first seen after the last fit waits for the next one
+    Z, score, fresh = {}, {}, 0
+    for k in keys:
+        x = tuple(math.log1p(agg[k][f]) for f in ML_KEYS)
+        hit = cache.get(k)
+        if hit and hit[0] == x:
+            Z[k], score[k] = hit[1], hit[2]
+            continue
+        Z[k] = _ml_z(base, k, x)
+        score[k] = fit["forest"].score(Z[k])
+        cache[k] = (x, Z[k], score[k])
+        fresh += 1
+    out["rescored"], out["cached"] = fresh, len(keys) - fresh
     by_svc = {}
     for k in keys:
         by_svc.setdefault(k[0], []).append(k)
     cut = out["cutoff"]
-    flagged = {}
-    for k in keys:
-        if score[k] < cut or counts.get(k[0], 0) < cfg["min_history"]:
+    flagged = _ml_flag(keys, score, Z, agg, counts, cfg, cut)
+    feedback = feedback or {}
+    for svc, run in _ml_runs(flagged, by_svc, bucket_s):
+        sg = _ml_signal(svc, run, agg, ids, Z, score, flagged, typical, base, counts, cut, bucket_s, fit["forest"], cfg)
+        sg["live"] = run[-1][1] == live_b
+        before = [k for k in by_svc[svc] if k[1] < run[0][1]]
+        sg["quiet_before_min"] = None if not before else round((run[0][1] - before[-1][1] - bucket_s) / 60)
+        sg["timeline"] = _ml_timeline(svc, run, by_svc[svc], agg, score, flagged, sg["reasons"][0]["feature"], bucket_s)
+        similar = feedback.get((svc, sg["reasons"][0]["feature"], sg["part"]), 0)
+        sg["similar_dismissed"] = similar
+        if similar and sg["id"] not in triaged and sg["score"] < cut + ML_HOLD_MARGIN:
+            sg["held"] = True
+            out["held"].append(sg)
             continue
-        reasons = [j for j, (f, _, _, floor) in enumerate(ML_FEATURES) if Z[k][j] >= ML_Z and agg[k][f] >= floor]
-        if reasons:
-            flagged[k] = sorted(reasons, key=lambda j: -Z[k][j])
-    # Consecutive flagged slices of a service (gap of at most one slice) become one signal.
-    for svc, ks in by_svc.items():
-        run = []
-        for k in ks + [None]:
-            if k in flagged and (not run or k[1] - run[-1][1] <= 2 * bucket_s):
-                run.append(k)
-                continue
-            if run:
-                sg = _ml_signal(svc, run, agg, ids, Z, score, flagged, typical[svc], cut, bucket_s)
-                sg["live"] = run[-1][1] == live_b
-                out["signals"].append(sg)
-            run = [k] if k in flagged else []
+        out["signals"].append(sg)
     # Several services unusual in the same slice usually means a deploy, restart or shared outage.
     at = {}
     for k in flagged:
         at.setdefault(k[1], set()).add(k[0])
-    for sg in out["signals"]:
+    for sg in out["signals"] + out["held"]:
         t0, t1 = _ts(sg["start"]).timestamp(), _ts(sg["end"]).timestamp()
         sg["together"] = sorted({x for t, v in at.items() if t0 <= t < t1 for x in v} - {sg["group"]})
+        sg["cause"] = _ml_cause(sg)
+        sg["summary"] = _ml_summary(sg, cfg)
+        sg["checks"] = _ml_checks(sg, cut, cfg)
     out["signals"].sort(key=lambda s: s["end"], reverse=True)
+    out["held"].sort(key=lambda s: s["end"], reverse=True)
     for svc, ks in sorted(by_svc.items()):
-        out["services"].append({"service": svc, "slices": counts.get(svc, 0), "learning": counts.get(svc, 0) < cfg["min_history"],
+        out["services"].append({"service": svc, "slices": counts.get((svc, "all"), 0), "learning": counts.get((svc, "all"), 0) < cfg["min_history"],
                                 "flagged": sum(1 for k in ks if k in flagged), "max_score": round(max(score[k] for k in ks), 3),
-                                "typical": typical[svc], "live": score.get((svc, live_b))})
+                                "typical": typical[(svc, "all")], "typical_day": typical.get((svc, "day")), "typical_night": typical.get((svc, "night")),
+                                "day_slices": counts.get((svc, "day"), 0), "night_slices": counts.get((svc, "night"), 0), "live": score.get((svc, live_b))})
         out["series"].append({"service": svc, "points": [[datetime.fromtimestamp(k[1], timezone.utc).isoformat(), round(score[k], 3), int(k in flagged), int(k[1] == live_b)] for k in ks]})
     if score:
         out["scores"] = {"p50": round(_q(score.values(), 0.5), 3), "p90": round(_q(score.values(), 0.9), 3), "p99": round(_q(score.values(), 0.99), 3), "max": round(max(score.values()), 3)}
-    out["seconds"] = round(time.time() - started, 2)
+        # What each sensitivity would have raised on this same window (before your reviews hold any back).
+        days = max(1.0, (max(k[1] for k in keys) - min(k[1] for k in keys)) / 86400)
+        out["backtest"] = {s: {"cutoff": c, "anomalies": (n := len(_ml_runs(_ml_flag(keys, score, Z, agg, counts, cfg, c), by_svc, bucket_s))), "per_day": round(n / days, 1)}
+                           for s, c in SENSITIVITY.items()}
+    out["seconds"] = round(time.time() - started, 3)
     return out, fit
 
 
-def _ml_signal(svc, run, agg, ids, Z, score, flagged, typical, cut, bucket_s):
+def _ml_signal(svc, run, agg, ids, Z, score, flagged, typical, base, counts, cut, bucket_s, forest, cfg):
     peak_k = max(run, key=lambda k: score[k])
+    grp = _ml_group(base, peak_k)
+    usual = typical[grp]
     top = {}
     for k in run:
         for j in flagged[k]:
             f = ML_KEYS[j]
             if f not in top or Z[k][j] > top[f]["z"]:
-                med, p95 = typical[f]
+                med, p95 = usual[f]
                 top[f] = {"feature": f, "label": ML_FEATURES[j][1], "value": agg[k][f], "usual": med, "p95": p95, "z": round(Z[k][j], 1),
-                          "times": round((agg[k][f] + 1) / (med + 1), 1), "category": ML_FEATURES[j][2]}
+                          "times": round((agg[k][f] + 1) / (med + 1), 1), "category": ML_FEATURES[j][2], "floor": ML_FEATURES[j][3]}
     reasons = sorted(top.values(), key=lambda r: -r["z"])[:4]
+    # Which measures did the isolating at the peak slice, weighted by how far above normal each is.
+    share = forest.explain(Z[peak_k])
+    infl = {f: share[j] * (1 + max(Z[peak_k][j], 0)) for j, f in enumerate(ML_KEYS) if Z[peak_k][j] > 0.5}
+    tot = sum(infl.values()) or 1.0
+    contrib = sorted(({"feature": f, "label": ML_FEATURES[ML_KEYS.index(f)][1], "share": round(v / tot, 3), "z": round(Z[peak_k][ML_KEYS.index(f)], 1),
+                       "value": agg[peak_k][f], "usual": usual[f][0]} for f, v in infl.items()), key=lambda c: -c["share"])[:6]
     sample = list(dict.fromkeys(i for r in reasons for k in run for i in ids[k][r["feature"]]))[:25]
     s_max = score[peak_k]
     sev = "high" if s_max >= cut + 0.07 else "medium" if s_max >= cut + 0.03 else "low"
-    if reasons[0]["feature"] in ("credentials", "auth_failures", "masked_pii") and sev == "low":
+    if reasons[0]["feature"] in ("credentials", "auth_failures", "auth_fail_rate", "masked_pii") and sev == "low":
         sev = "medium"
     start = datetime.fromtimestamp(run[0][1], timezone.utc).isoformat()
     lines = int(sum(agg[k]["lines"] for k in run))
+    part = ml_part(peak_k[1])
     return {"id": hashlib.sha1(f"{ML_ID}|{svc}|{start}".encode()).hexdigest()[:12], "detector": ML_ID, "source": "activity_logs",
             "group": svc, "start": start, "end": datetime.fromtimestamp(run[-1][1] + bucket_s, timezone.utc).isoformat(),
             "events": lines, "total": lines, "peak": round(s_max, 3), "services": [svc], "sample_ids": sample,
-            "score": round(s_max, 3), "severity": sev, "category": reasons[0]["category"], "slices": len(run), "reasons": reasons}
+            "score": round(s_max, 3), "severity": sev, "category": reasons[0]["category"], "slices": len(run), "reasons": reasons,
+            "contributions": contrib, "part": part, "baseline": "time_of_day" if grp[1] != "all" else "all_day",
+            "baseline_slices": counts.get(grp, 0), "peak_at": datetime.fromtimestamp(peak_k[1], timezone.utc).isoformat(),
+            "history_slices": counts.get((svc, "all"), 0), "confidence": round(min(1.0, (s_max - cut) / 0.12 + 0.35 + min(reasons[0]["z"], 12) / 24), 2)}
+
+
+def _ml_timeline(svc, run, ks, agg, score, flagged, feature, bucket_s, around=18):
+    """The service around the anomaly: lines, the top measure and the score per slice, with the run marked."""
+    t0, t1 = run[0][1] - around * bucket_s, run[-1][1] + around * bucket_s
+    inrun = {k[1] for k in run}
+    return [[datetime.fromtimestamp(k[1], timezone.utc).isoformat(), agg[k]["lines"], agg[k][feature], round(score[k], 3), int(k[1] in inrun), int(k in flagged)]
+            for k in ks if t0 <= k[1] <= t1]
+
+
+ML_CAUSES = [  # in priority order: (label, what it suggests, measures that point to it, what to check)
+    ("Possible credential stuffing or brute-force sign-in", "confidentiality", {"auth_failures", "auth_fail_rate"},
+     ["Which accounts and source addresses the rejected sign-ins came from", "Whether any of them later succeeded", "Rate limiting and lockouts on the sign-in API"]),
+    ("Personal data leaking into the logs", "confidentiality", {"masked_pii"},
+     ["Which log statements carry the personal data", "Fix the logging at the source; check the masker for misses"]),
+    ("Possible bulk read of personal data (scraping or export)", "confidentiality", {"personal_data", "personal_share"},
+     ["Which account or service read the records, and how many customers they cover", "Whether an export or report was planned at that time"]),
+    ("Unusual credential or password activity", "confidentiality", {"credentials"},
+     ["Who changed or reset passwords or tokens, and whether customers asked for it", "Whether sign-ins came from new places at the same time"]),
+    ("Unusual volume of data operations", "confidentiality", {"operations"},
+     ["Which operations ran (logins, orders, profile changes) and for whom", "A batch job, import or test run at that time"]),
+    ("Service failure or slowdown", "availability", {"errors", "error_rate", "server_errors", "latency_p95", "warnings"},
+     ["The service's error messages around the peak", "Whether customers could still use the service", "A deploy or config change just before"]),
+    ("Traffic spike", "availability", {"requests"},
+     ["Where the extra traffic came from (a campaign, a bot, a partner)", "Whether it carried personal data"]),
+]
+ML_SECURITY = {"auth_failures", "auth_fail_rate", "masked_pii", "personal_data", "personal_share", "credentials"}
+
+
+def _ml_cause(sg):
+    """Likely cause from the measures that are clearly above normal; security causes come first."""
+    feats = [r["feature"] for r in sg["reasons"]]
+    lead_share = (sg.get("contributions") or [{"feature": None, "share": 0}])[0]
+    quiet = sg.get("quiet_before_min")
+    if (quiet is None or quiet >= 60) and not {"auth_failures", "auth_fail_rate", "masked_pii"} & set(feats):
+        gap = "its first activity in this window" if quiet is None else f"after {quiet // 60} h {quiet % 60} min with no activity"
+        return {"label": "Start-up burst (restart or deploy)", "category": "availability", "confidence": "medium",
+                "why": f"It came {gap}; services log a burst of set-up events (schema checks, seeding, connections) when they start.",
+                "check": ["Whether the service was restarted or deployed at that time", "That the start-up lines are set-up events, not customer activity",
+                          "If it wasn't a planned restart, why the service stopped"]}
+    if len(sg.get("together") or []) >= 2 and not ML_SECURITY & set(feats):
+        return {"label": "Outage, deploy or restart across services", "category": "availability", "confidence": "high",
+                "why": f"{len(sg['together']) + 1} services were unusual in the same slices, led by {sg['reasons'][0]['label']}.",
+                "check": ["Deploys, restarts or infrastructure changes at that time", "Whether the shared database or gateway was slow"]}
+    for label, cat, fs, check in ML_CAUSES:
+        # security causes count from any measure that is clearly above normal; the rest only from the leading one
+        hit = [r for r in sg["reasons"] if r["feature"] in fs] if fs & ML_SECURITY else [r for r in sg["reasons"][:1] if r["feature"] in fs]
+        if hit:
+            conf = "high" if hit[0] is sg["reasons"][0] and lead_share["feature"] in fs and lead_share["share"] >= 0.3 else "medium" if hit[0] is sg["reasons"][0] else "low"
+            return {"label": label, "category": cat, "confidence": conf,
+                    "why": f"{hit[0]['label'][0].upper() + hit[0]['label'][1:]}: {hit[0]['value']:g} against a usual {hit[0]['usual']:g} ({hit[0]['times']:g}× more).", "check": check}
+    return {"label": "Unusual mix of activity", "category": sg["category"], "confidence": "low", "why": "No single measure dominates.", "check": ["Read the sample log lines"]}
+
+
+def _ml_summary(sg, cfg):
+    f = lambda iso: datetime.fromisoformat(iso).astimezone(IST_TZ).strftime("%d %b, %I:%M %p").lstrip("0").replace(" 0", " ")
+    r0 = sg["reasons"][0]
+    when = "during the day" if sg["part"] == "day" else "at night"
+    usual = f"usually {r0['usual']:g} {when}" if sg["baseline"] == "time_of_day" else f"usually {r0['usual']:g}"
+    s = (f"Between {f(sg['start'])} and {f(sg['end']).split(', ')[-1]} IST, {sg['group']} had {r0['value']:g} {r0['label']} in one "
+         f"{cfg['bucket_minutes']}-minute slice ({usual}, {r0['times']:g}× more).")
+    if len(sg["reasons"]) > 1:
+        r1 = sg["reasons"][1]
+        s += f" It also had {r1['value']:g} {r1['label']} against a usual {r1['usual']:g}."
+    if sg.get("together"):
+        s += f" {', '.join(sg['together'][:3])} {'was' if len(sg['together']) == 1 else 'were'} unusual at the same time."
+    q = sg.get("quiet_before_min")
+    if q is not None and q >= 60:
+        s += f" It came right after {q // 60} h {q % 60} min with no activity from the service."
+    return s
+
+
+def _ml_checks(sg, cut, cfg):
+    r0 = sg["reasons"][0]
+    return [
+        {"ok": True, "label": "Anomaly score", "text": f"{sg['score']:.2f} ≥ cut-off {cut} ({cfg['sensitivity']} sensitivity)"},
+        {"ok": True, "label": "Clearly above normal", "text": f"{r0['label']}: {r0['z']} spreads above usual (needs ≥ {ML_Z:g})"},
+        {"ok": True, "label": "A meaningful amount", "text": f"{r0['value']:g} ≥ {r0['floor']:g}, so small wobbles don't alert"},
+        {"ok": True, "label": "Enough history", "text": f"{sg['history_slices']} slices of {sg['group']} learned (needs {cfg['min_history']})"},
+        {"ok": sg["baseline"] == "time_of_day", "label": "Time-of-day normal",
+         "text": f"compared with {sg['group']}'s usual {sg['part']}time level ({sg['baseline_slices']} slices)" if sg["baseline"] == "time_of_day"
+         else f"not enough {sg['part']}time history yet, so compared with the whole-day normal"},
+        {"ok": not sg.get("similar_dismissed"), "label": "Your reviews",
+         "text": "no similar alert was dismissed before" if not sg.get("similar_dismissed") else
+         f"{sg['similar_dismissed']} similar alert(s) dismissed before; " + ("held back as expected" if sg.get("held") else "this one is stronger, so it still alerts")},
+    ]
 
 
 _ml_lock = threading.Lock()
@@ -1050,7 +1261,18 @@ def ml_model(doc, token, force=False, preview=None, wait=True, user="system"):
             else:
                 rows, truncated, since = _ml_rows(lookback, token, user)
             refit = preview or force or c["fit"] is None or c["fit_key"] != key or time.time() - c["fit_at"] > ML_REFIT_S
-            value, fit = ml_train(cfg, rows, truncated, since, None if refit else c["fit"])
+            triage = read_incidents().get("triage", {})
+            feedback = {}
+            prev = {x["id"]: x for x in ((c.get("value") or {}).get("signals") or []) if x.get("reasons")}
+            for sid, t in triage.items():
+                if t.get("state") != "dismissed":
+                    continue
+                m = t.get("ml") or ({"service": prev[sid]["group"], "feature": prev[sid]["reasons"][0]["feature"], "part": prev[sid].get("part")} if sid in prev else None)
+                if m and m.get("part"):
+                    key3 = (m["service"], m["feature"], m["part"])
+                    feedback[key3] = feedback.get(key3, 0) + 1
+            value, fit = ml_train(cfg, rows, truncated, since, None if refit else c["fit"], feedback, set(triage))
+            value["reviews"] = {"dismissed_patterns": len(feedback), "held": len(value.get("held", []))}
             if refit and not preview:
                 c.update(fit=fit, fit_key=key, fit_at=time.time())
             value["refit_every_s"], value["rescore_every_s"] = ML_REFIT_S, ML_RESCORE_S
@@ -1248,6 +1470,9 @@ def triage_signal(sid, action, body, user):
             if not reason:
                 raise ValueError("Give a reason for dismissing the signal.")
             reg["triage"][sid] = {"state": "dismissed", "reason": reason, "by": user, "at": now_iso()}
+            sg = next((x for x in ((_ml_cache.get("value") or {}).get("signals") or []) if x.get("id") == sid), None)
+            if sg and sg.get("reasons"):
+                reg["triage"][sid]["ml"] = {"service": sg["group"], "feature": sg["reasons"][0]["feature"], "part": sg.get("part")}
         elif action == "reopen":
             t = reg["triage"].get(sid)
             if t and t.get("state") == "linked":

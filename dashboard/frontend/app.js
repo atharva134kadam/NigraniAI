@@ -13,7 +13,7 @@ let session = null, currentView = "dashboard", firstShow = true;
 let ME = null;
 const can = (action) => !!ME && (ME.root || ME.allowed.includes(action));
 // The action each section needs before it appears in the navigation.
-const VIEW_ACTION = { dashboard: "dashboard:View", telemetry: "telemetry:ReadLogs", consent: "consent:ReadFindings", retention: "retention:ReadSchedule", breach: "breach:ReadSignals", ai: "ai:Ask", iam: null, usage: null, readiness: null, evidence: null, datamap: "datamap:Read", account: null };
+const VIEW_ACTION = { dashboard: "dashboard:View", telemetry: "telemetry:ReadLogs", consent: "consent:ReadFindings", retention: "retention:ReadSchedule", breach: "breach:ReadSignals", anomaly: "breach:ReadSignals", ai: "ai:Ask", iam: null, usage: null, readiness: null, evidence: null, datamap: "datamap:Read", account: null };
 const canUsage = () => can("usage:ViewOwnUsage") || can("usage:ViewAllUsage");
 function applyAccess() {
   document.querySelectorAll("#nav [data-view]").forEach((b) => (b.hidden = b.dataset.view === "iam" ? !(can("iam:ListUsers") || can("iam:ListPolicies")) : b.dataset.view === "usage" ? !canUsage() : b.dataset.view === "readiness" ? !(can("readiness:Read") || can("readiness:Run")) : b.dataset.view === "evidence" ? !(can("readiness:Read") || can("readiness:VerifyIntegrity") || can("readiness:ExportEvidence")) : !!VIEW_ACTION[b.dataset.view] && !can(VIEW_ACTION[b.dataset.view])));
@@ -149,7 +149,7 @@ async function signOut() {
 $("logoutBtn").onclick = signOut;
 
 /* ---------- Navigation ---------- */
-const TITLES = { dashboard: "Dashboard", telemetry: "Log Telemetry", consent: "Consent & Purpose", retention: "Retention", breach: "Breach Response", ai: "AI Assistant", iam: "Access management", usage: "Usage & plan", readiness: "DPDP readiness", evidence: "Evidence & audit", datamap: "Data map", account: "Account" };
+const TITLES = { dashboard: "Dashboard", telemetry: "Log Telemetry", consent: "Consent & Purpose", retention: "Retention", breach: "Breach Response", anomaly: "Anomaly detection", ai: "AI Assistant", iam: "Access management", usage: "Usage & plan", readiness: "DPDP readiness", evidence: "Evidence & audit", datamap: "Data map", account: "Account" };
 // An unpaid invoice shows on every page (with Pay now for people who may see billing).
 function billingBanner() {
   const el = $("billBanner"), bl = ME?.billing;
@@ -178,6 +178,7 @@ function show(view, opts = {}) {
   else if (view === "consent") Consent.show();
   else if (view === "retention") Retention.show();
   else if (view === "breach") Breach.show();
+  else if (view === "anomaly") Anomaly.show();
   else if (view === "ai") AI.show();
   else if (view === "account") Account.show();
   else if (view === "iam") IAM.show();
@@ -205,6 +206,7 @@ setInterval(() => {
   else if (currentView === "consent" && ticks % 8 === 0) Consent.tick(); // every 16 s
   else if (currentView === "retention" && ticks % 15 === 0) Retention.tick(); // every 30 s
   else if (currentView === "breach") Breach.tick(ticks); // re-scans about every 15 s
+  else if (currentView === "anomaly") Anomaly.tick(ticks); // newest lines scored every 10 s
   else if (currentView === "usage") Usage.tick(ticks); // every 20 s
   else if (currentView === "datamap" && ticks % 2 === 0) DataMap.tick(); // new database-log rows every 4 s
   if (ticks % 30 === 0 && typeof Account !== "undefined") Account.refreshMe(); // usage banner and permissions every minute

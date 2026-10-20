@@ -14,7 +14,7 @@
   try { document.documentElement.dataset.theme = localStorage.getItem("theme") === "dark" ? "dark" : "light"; }
   catch { document.documentElement.dataset.theme = "light"; }
 </script>
-<link rel="stylesheet" href="style.css?v=71">
+<link rel="stylesheet" href="style.css?v=74">
 <script src="config.js?v=17"></script>
 </head>
 <body>
@@ -39,6 +39,7 @@
   <symbol id="i-key" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></g></symbol>
   <symbol id="i-meter" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19a9 9 0 1 1 16 0"/><path d="m12 14 4-5"/><path d="M12 14h.01" stroke-width="3"/></g></symbol>
   <symbol id="i-ledger" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="7" height="7" rx="1.6"/><rect x="14" y="13.5" width="7" height="7" rx="1.6"/><path d="M10 7h3.5a3 3 0 0 1 3 3v3.5"/><path d="m5.2 7.1 1.3 1.3 2.3-2.4"/></g></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h3.5l2.5-6 4 12 2.5-6H21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-gauge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.3 2.3 4.7-5"/></g></symbol>
   <symbol id="i-map" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M7 6.8 10.1 11M7 17.2l3.1-4.2M13.9 11 17 6.8M13.9 13l3.1 4.2"/></g></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
@@ -101,6 +102,7 @@
       <button data-view="datamap" aria-label="Data map"><svg><use href="#i-map"/></svg><span>Data map</span></button>
       <button data-view="retention" aria-label="Retention"><svg><use href="#i-retention"/></svg><span>Retention</span></button>
       <button data-view="breach" aria-label="Breach Response"><svg><use href="#i-breach"/></svg><span>Breach Response</span></button>
+      <button data-view="anomaly" aria-label="Anomaly detection"><svg><use href="#i-pulse"/></svg><span>Anomaly detection</span></button>
       <button data-view="ai" aria-label="AI Assistant" class="nav-ai"><svg><use href="#i-ai"/></svg><span>AI Assistant</span></button>
       <button data-view="iam" aria-label="Access management" hidden><svg><use href="#i-key"/></svg><span>Access (IAM)</span></button>
       <button data-view="readiness" aria-label="DPDP readiness" hidden><svg><use href="#i-gauge"/></svg><span>Readiness score</span></button>
@@ -349,7 +351,7 @@
         <button role="tab" data-tab="overview" class="on" aria-selected="true">Overview</button>
         <button role="tab" data-tab="signals" aria-selected="false">Signals <span id="brSigCount" class="cp-count-pill" hidden></span></button>
         <button role="tab" data-tab="incidents" aria-selected="false">Breach register <span id="brIncCount" class="cp-count-pill" hidden></span></button>
-        <button role="tab" data-tab="model" aria-selected="false"><span id="brModelDot" class="br-mdot" aria-hidden="true"></span>Anomaly model <span class="br-mlbeta">ML</span></button>
+        <button role="tab" data-tab="model" aria-selected="false"><span id="brModelDot" class="br-mdot" aria-hidden="true"></span>Anomaly model ↗ <span class="br-mlbeta">ML</span></button>
         <button role="tab" data-tab="detectors" aria-selected="false">Detectors &amp; settings</button>
       </div>
       <div id="brBody"></div>
@@ -424,6 +426,7 @@
     <section id="view-readiness" class="view" hidden><div id="rdBody"></div></section>
 
     <!-- DATA MAP -->
+    <section id="view-anomaly" class="view" hidden><div id="anBody"></div><div id="anToast" class="ttoast ok" role="status" hidden></div></section>
     <section id="view-evidence" class="view" hidden><div id="evBody"></div><div id="evToast" class="ttoast ok" role="status" hidden></div></section>
     <section id="view-datamap" class="view" hidden><div id="dmBody"></div></section>
 
@@ -449,16 +452,17 @@
 <script src="telemetry.js?v=16"></script>
 <script src="consent.js?v=39"></script>
 <script src="retention.js?v=9"></script>
-<script src="breach.js?v=12"></script>
+<script src="breach.js?v=13"></script>
 <script src="dashboard.js?v=11"></script>
-<script src="ai.js?v=11"></script>
+<script src="ai.js?v=12"></script>
 <script src="account.js?v=9"></script>
 <script src="iam.js?v=5"></script>
 <script src="usage.js?v=6"></script>
 <script src="readiness.js?v=10"></script>
 <script src="evidence.js?v=3"></script>
+<script src="anomaly.js?v=2"></script>
 <script src="datamap.js?v=12"></script>
 <script src="billing.js?v=3"></script>
-<script src="app.js?v=61"></script>
+<script src="app.js?v=62"></script>
 </body>
 </html>
