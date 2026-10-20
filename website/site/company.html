@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Company · NigraniAI</title>
+<meta name="description" content="NigraniAI is an AI compliance agent for India's Digital Personal Data Protection Act, 2023. It reads your live logs and database, read-only, and shows in real time where you stand under the Act, why, and what to fix.">
+<meta name="theme-color" content="#050b18">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/nigrani-mark.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NigraniAI · Real-time DPDP compliance">
+<meta property="og:description" content="Watch personal data, consent, retention and breaches live, and prove it to auditors with tamper-evident evidence.">
+<meta property="og:image" content="assets/nigrani-logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="backdrop" aria-hidden="true"></div>
+
+<!-- icon set (Lucide-style strokes) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#818cf8"/></linearGradient>
+    <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".35"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient>
+  </defs>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/></g></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.4 7.5 9.5 4.4-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m9 12 2 2 4-4"/></g></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></g></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-13M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></g></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="6" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M7 6.8 10.1 11M7 17.2l3.1-4.2M13.9 11 17 6.8M13.9 13l3.1 4.2"/></g></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 12h8M8 9h5M8 15h6"/></g></symbol>
+  <symbol id="i-consent" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 3.5h6v2.5H9z"/><path d="m9 13 2 2 4-4"/></g></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></g></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.5 20h19L12 3.5Z"/><path d="M12 10v4.5M12 17.5v.01"/></g></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h3.5l2.5-6 4 12 2.5-6H21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-logs" viewBox="0 0 24 24"><path d="M5 6.5h14M5 12h14M5 17.5h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-ai" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5l-1.9-5.7L4.5 10.9 10.1 9z"/><path d="M19 15.5v4M17 17.5h4"/></g></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.3 2.3 4.7-5"/></g></symbol>
+  <symbol id="i-chain" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></g></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 8.5-8.5M16 7l2.5 2.5M14 9l2 2"/></g></symbol>
+  <symbol id="i-console" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 13l3-3 2.5 2.5L17 8"/></g></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/><path d="M8 7.5h.01M8 16.5h.01"/></g></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></g></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/></g></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M7 20h10M5 7h14M5 7l-3 7a3.5 3.5 0 0 0 6 0L5 7ZM19 7l-3 7a3.5 3.5 0 0 0 6 0l-3-7Z"/></g></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10 21v-3h4v3"/></g></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></g></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></g></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></g></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></g></symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-row">
+    <a href="index.html" class="brand" aria-label="NigraniAI home"><span class="brand-mark"><img src="assets/nigrani-mark.png" alt=""></span><span class="brand-word">Nigrani<b>AI</b></span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="index.html#platform">Platform</a><a href="index.html#how">How it works</a><a href="index.html#dpdp">DPDP Act</a><a href="index.html#pricing">Pricing</a><a href="company.html">Company</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="index.html#contact" class="btn primary sm">Book a demo <svg class="i"><use href="#i-arrow"/></svg></a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="sheet"><svg class="i"><use href="#i-menu"/></svg></button>
+    </div>
+  </div>
+</header>
+<div class="sheet" id="sheet" hidden>
+  <a href="index.html#platform">Platform</a><a href="index.html#how">How it works</a><a href="index.html#dpdp">DPDP Act</a><a href="index.html#pricing">Pricing</a><a href="company.html">Company</a>
+  <a href="index.html#contact" class="btn primary">Book a demo <svg class="i"><use href="#i-arrow"/></svg></a>
+</div>
+
+<main id="main">
+<section class="c-hero">
+  <div class="wrap">
+    <span class="chip cyan rv"><span class="dot"></span> Our company</span>
+    <h1 class="rv d1">We make privacy <span class="grad">provable.</span></h1>
+    <p class="lead rv d2">NigraniAI (<i>nigrani</i>, "watchful oversight") builds the compliance layer India's privacy law needs: software that watches what systems really do with personal data, explains it, and proves it.</p>
+    <div class="c-eye rv d3"><img src="assets/nigrani-logo.jpg" alt="The NigraniAI logo: an eye with a shield and keyhole at its centre"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="mv">
+      <div class="glass rv"><span class="ico"><svg class="i"><use href="#i-flag"/></svg></span><h3>Our mission</h3><p>Help every Indian business meet the Digital Personal Data Protection Act from evidence, not paperwork: continuously, in plain language, and without ever putting customer data at risk.</p></div>
+      <div class="glass rv d1"><span class="ico"><svg class="i"><use href="#i-eye"/></svg></span><h3>Our vision</h3><p>A country where any company can prove, on any day, that it respects the personal data of the people it serves, and where people can trust that it does.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section band">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">Our story</span><h2 class="h2">From a question to a <span class="grad">working system.</span></h2></div>
+    <div class="story">
+      <div class="mile rv"><span class="n"><svg class="i"><use href="#i-search"/></svg></span><div><small>The question</small><h3>"Can a company actually see what its systems do with personal data?"</h3><p>With the DPDP Act passed in 2023, we asked a simple question. The honest answer for most businesses was no: compliance lived in spreadsheets and yearly audits.</p></div></div>
+      <div class="mile rv"><span class="n"><svg class="i"><use href="#i-db"/></svg></span><div><small>The idea</small><h3>Read the systems, not the paperwork</h3><p>Instead of asking teams what they do, NigraniAI reads the live logs and database, read-only, and checks every rule of the Act against real activity.</p></div></div>
+      <div class="mile rv"><span class="n"><svg class="i"><use href="#i-building"/></svg></span><div><small>The pilot</small><h3>A real e-commerce company</h3><p>We piloted NigraniAI on a live e-commerce stack with microservices. On day one it found a service reading payment and customer data with no declared purpose.</p></div></div>
+      <div class="mile rv"><span class="n"><svg class="i"><use href="#i-server"/></svg></span><div><small>Today</small><h3>Live, in India</h3><p>The full platform runs on secure cloud servers in Mumbai: twelve tools, explainable machine learning and tamper-evident evidence, with a console to run it for many clients.</p></div></div>
+      <div class="mile rv"><span class="n"><svg class="i"><use href="#i-arrow"/></svg></span><div><small>Next</small><h3>Built to scale</h3><p>A streaming engine for very high log volumes, connectors for more databases and clouds, and coverage for children's data and Significant Data Fiduciary duties.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">What we stand for</span><h2 class="h2">Principles we <span class="grad">build by.</span></h2></div>
+    <div class="princ">
+      <div class="glass pr lift rv"><span class="ico"><svg class="i"><use href="#i-lock"/></svg></span><h3>Read-only, always</h3><p>We never write to a client's systems or copy customer records out. Trust starts with not touching what isn't ours.</p></div>
+      <div class="glass pr lift rv d1"><span class="ico"><svg class="i"><use href="#i-file"/></svg></span><h3>Evidence over claims</h3><p>Every finding comes from real activity and cites its section of the law. If we can't show it, we don't say it.</p></div>
+      <div class="glass pr lift rv d2"><span class="ico"><svg class="i"><use href="#i-ai"/></svg></span><h3>Explainable AI</h3><p>Our models say what they saw and why they flagged it. No black boxes in a compliance tool.</p></div>
+      <div class="glass pr lift rv"><span class="ico"><svg class="i"><use href="#i-eye"/></svg></span><h3>Data minimised</h3><p>Personal values are masked before anyone sees them; our AI works on summaries, never on customer records.</p></div>
+      <div class="glass pr lift rv d1"><span class="ico"><svg class="i"><use href="#i-flag"/></svg></span><h3>Built for India</h3><p>Designed around the DPDP Act and Rules, Indian identifiers, and hosting in India.</p></div>
+      <div class="glass pr lift rv d2"><span class="ico"><svg class="i"><use href="#i-users"/></svg></span><h3>People decide</h3><p>NigraniAI drafts and recommends; your team reviews and acts. Accountability stays with people.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section band" id="team">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">The team</span><h2 class="h2">The people behind <span class="grad">NigraniAI.</span></h2><p class="lead">A team of engineers from MIT Academy of Engineering, Alandi, Pune.</p></div>
+    <div class="team">
+      <div class="glass member lift rv"><div class="avatar">A</div><h3 class="ph">[Name]</h3><p class="role">[Founder · role]</p><p class="ph">[One line about their work]</p></div>
+      <div class="glass member lift rv d1"><div class="avatar">B</div><h3 class="ph">[Name]</h3><p class="role">[Role]</p><p class="ph">[One line about their work]</p></div>
+      <div class="glass member lift rv d2"><div class="avatar">C</div><h3 class="ph">[Name]</h3><p class="role">[Role]</p><p class="ph">[One line about their work]</p></div>
+      <div class="glass member lift rv d3"><div class="avatar">D</div><h3 class="ph">[Name]</h3><p class="role">[Role]</p><p class="ph">[One line about their work]</p></div>
+    </div>
+    <div class="affil rv"><span class="chip"><svg class="i" style="width:16px;height:16px"><use href="#i-building"/></svg> MIT Academy of Engineering, Alandi, Pune</span></div>
+  </div>
+</section>
+
+<section class="section" id="contact">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">Get in touch</span><h2 class="h2">Let's talk about <span class="grad">your compliance.</span></h2></div>
+    <div class="contact-grid">
+      <div class="glass ct rv"><span class="ico"><svg class="i"><use href="#i-mail"/></svg></span><div><h4>Email</h4><p class="ph">[contact@yourdomain.com]</p></div></div>
+      <div class="glass ct rv d1"><span class="ico"><svg class="i"><use href="#i-cal"/></svg></span><div><h4>Book a demo</h4><p><a href="index.html#contact" style="color:var(--cyan)">Pick a slot that suits you →</a></p></div></div>
+      <div class="glass ct rv d2"><span class="ico"><svg class="i"><use href="#i-building"/></svg></span><div><h4>Office</h4><p class="ph">[Address, Pune, Maharashtra]</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="wrap">
+    <div class="glass cta rv">
+      <div class="eyemark"><img src="assets/nigrani-mark.png" alt=""></div>
+      <h2>See your compliance the way <span class="grad">NigraniAI sees it.</span></h2>
+      <p>Thirty minutes, your questions, and the tools that matter to you.</p>
+      <div class="cta-btns"><a href="index.html#contact" class="btn primary">Book a demo <svg class="i"><use href="#i-arrow"/></svg></a><a href="index.html#platform" class="btn ghost">Explore the platform</a></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div><a href="index.html" class="brand"><span class="brand-mark"><img src="assets/nigrani-mark.png" alt=""></span><span class="brand-word">Nigrani<b>AI</b></span></a><p>Real-time DPDP compliance, proven from what your systems actually do. Built in India, for India's privacy law.</p></div>
+      <div><h4>Platform</h4><ul><li><a href="index.html#platform">All tools</a></li><li><a href="#spotlight">Anomaly detection</a></li><li><a href="#spotlight">Evidence &amp; audit</a></li><li><a href="index.html#how">How it works</a></li></ul></div>
+      <div><h4>DPDP Act</h4><ul><li><a href="index.html#dpdp">The law, explained</a></li><li><a href="index.html#dpdp">Your duties</a></li><li><a href="index.html#dpdp">Breach clocks</a></li><li><a href="index.html#dpdp">Penalties</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="company.html">About us</a></li><li><a href="index.html#pricing">Pricing</a></li><li><a href="index.html#contact">Book a demo</a></li><li><a href="#contact">Contact</a></li></ul></div>
+    </div>
+    <div class="foot-bottom"><span>© <span class="yr"></span> NigraniAI. All rights reserved.</span><span>Information on this site is not legal advice.</span></div>
+  </div>
+</footer>
+
+<div class="cookie" id="cookie" hidden role="dialog" aria-label="Cookies">
+  <p><b>We respect your privacy.</b> This site uses only the storage it needs to work. With your consent we may also measure visits to improve it.</p>
+  <div><button class="btn ghost sm" data-cookie="essential">Essential only</button><button class="btn primary sm" data-cookie="all">Accept</button></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
