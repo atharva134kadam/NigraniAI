@@ -32,5 +32,7 @@ amber: search for `class="ph"`.
 
 ## Deploy
 
-Any static host works (GitHub Pages, Netlify, Cloudflare Pages, S3, or the NigraniAI server's nginx):
-upload the contents of this folder.
+Live on **Vercel**: https://nigrani-ai.vercel.app (project `nigrani-ai`, connected to the GitHub repo,
+Root Directory `website`). Every push to `main` redeploys it automatically. `vercel.json` marks it as a
+plain static site (no install or build), turns on clean URLs (`/company`) and adds security headers.
+Any other static host works too: upload this folder.
