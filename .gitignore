@@ -9,3 +9,4 @@ dashboard/consent_service/data/
 dashboard/consent_service/.pii-venv/
 dashboard/deploy/target.env
 website/dist/
+.vercel
