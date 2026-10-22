@@ -1,15 +1,465 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/jpeg" href="/images/nigraniai-logo.jpeg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="NigraniAI - Intelligent privacy and compliance monitoring platform. Discover personal data, monitor processing activities, validate consent and purpose, detect potential privacy risks, and strengthen DPDPA compliance readiness." />
-    <meta name="theme-color" content="#1e3a5f" />
-    <title>NigraniAI - Turn Data Privacy Into Continuous Intelligence</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NigraniAI · Prove DPDP compliance from what your systems actually do</title>
+<meta name="description" content="NigraniAI is an AI compliance agent for India's Digital Personal Data Protection Act, 2023. It reads your live logs and database, read-only, and shows in real time where you stand under the Act, why, and what to fix.">
+<meta name="theme-color" content="#050b18">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/nigrani-mark.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NigraniAI · Real-time DPDP compliance">
+<meta property="og:description" content="Watch personal data, consent, retention and breaches live, and prove it to auditors with tamper-evident evidence.">
+<meta property="og:image" content="assets/nigrani-logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="backdrop" aria-hidden="true"></div>
+
+<!-- icon set (Lucide-style strokes) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#818cf8"/></linearGradient>
+    <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".35"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient>
+  </defs>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/></g></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.4 7.5 9.5 4.4-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m9 12 2 2 4-4"/></g></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></g></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-13M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></g></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="6" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M7 6.8 10.1 11M7 17.2l3.1-4.2M13.9 11 17 6.8M13.9 13l3.1 4.2"/></g></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M8 12h8M8 9h5M8 15h6"/></g></symbol>
+  <symbol id="i-consent" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 3.5h6v2.5H9z"/><path d="m9 13 2 2 4-4"/></g></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></g></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.5 20h19L12 3.5Z"/><path d="M12 10v4.5M12 17.5v.01"/></g></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h3.5l2.5-6 4 12 2.5-6H21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-logs" viewBox="0 0 24 24"><path d="M5 6.5h14M5 12h14M5 17.5h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-ai" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5l-1.9-5.7L4.5 10.9 10.1 9z"/><path d="M19 15.5v4M17 17.5h4"/></g></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.3 2.3 4.7-5"/></g></symbol>
+  <symbol id="i-chain" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></g></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 8.5-8.5M16 7l2.5 2.5M14 9l2 2"/></g></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/><path d="M8 7.5h.01M8 16.5h.01"/></g></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></g></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/></g></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M7 20h10M5 7h14M5 7l-3 7a3.5 3.5 0 0 0 6 0L5 7ZM19 7l-3 7a3.5 3.5 0 0 0 6 0l-3-7Z"/></g></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10 21v-3h4v3"/></g></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></g></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></g></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></g></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></g></symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-row">
+    <a href="index.html" class="brand" aria-label="NigraniAI home"><img class="brand-eye" src="assets/nigrani-eye-300.png" alt="" width="92" height="46"><span class="brand-word">Nigrani<b>AI</b></span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="#platform">Platform</a><a href="#how">How it works</a><a href="#dpdp">DPDP Act</a><a href="#pricing">Pricing</a><a href="company.html">Company</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="#contact" class="btn primary sm">Book a demo <svg class="i"><use href="#i-arrow"/></svg></a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="sheet"><svg class="i"><use href="#i-menu"/></svg></button>
+    </div>
+  </div>
+</header>
+<div class="sheet" id="sheet" hidden>
+  <a href="#platform">Platform</a><a href="#how">How it works</a><a href="#dpdp">DPDP Act</a><a href="#pricing">Pricing</a><a href="company.html">Company</a>
+  <a href="#contact" class="btn primary">Book a demo <svg class="i"><use href="#i-arrow"/></svg></a>
+</div>
+
+<main id="main">
+<!-- ============ HERO ============ -->
+<section class="hero" id="top">
+  <div class="eye-glow" aria-hidden="true"></div>
+  <div class="wrap hero-grid">
+    <div>
+      <span class="chip cyan rv"><span class="dot"></span> Built for India's DPDP Act, 2023 &amp; DPDP Rules, 2025</span>
+      <h1 class="rv d1">Prove DPDP compliance from what your systems <span class="grad">actually do.</span></h1>
+      <p class="lead rv d2">NigraniAI is an AI compliance agent. It reads your live logs and database, read-only, and shows in real time where you stand under the Act, why, and exactly what to fix, with evidence an auditor can verify.</p>
+      <div class="hero-cta rv d3">
+        <a href="#contact" class="btn primary">Book a demo <svg class="i"><use href="#i-arrow"/></svg></a>
+        <a href="#platform" class="btn ghost"><svg class="i"><use href="#i-play"/></svg> Explore the platform</a>
+      </div>
+      <div class="hero-trust rv d4">
+        <span><svg class="i"><use href="#i-lock"/></svg> Read-only by design</span>
+        <span><svg class="i"><use href="#i-flag"/></svg> Hosted in India</span>
+        <span><svg class="i"><use href="#i-chain"/></svg> Tamper-evident evidence</span>
+      </div>
+    </div>
+
+    <div class="rv d2" style="position:relative">
+      <div class="mock" aria-label="Illustration of the NigraniAI dashboard">
+        <div class="mock-top"><i></i><i></i><i></i><b>NigraniAI · Compliance overview</b><span class="chip cyan"><span class="dot"></span> Live</span></div>
+        <div class="mock-grid">
+          <div class="ring-card">
+            <svg class="ring" viewBox="0 0 120 120"><circle class="tr" cx="60" cy="60" r="50"/><circle class="va" id="ringVal" cx="60" cy="60" r="50" stroke-dasharray="314.2" stroke-dashoffset="314.2"/><text x="60" y="64" text-anchor="middle" id="ringNum">0</text><text class="of" x="60" y="82" text-anchor="middle">readiness</text></svg>
+            <small>DPDP readiness</small>
+          </div>
+          <div>
+            <div class="mini-stats">
+              <div class="ms"><small>Consent</small><b class="ok">On track</b></div>
+              <div class="ms"><small>Retention</small><b class="ok">In date</b></div>
+              <div class="ms"><small>Evidence</small><b class="ok">Intact</b></div>
+            </div>
+            <div class="spark"><svg viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true"><path class="ar" d="M0 46 L20 44 L40 47 L60 41 L80 43 L100 38 L120 42 L140 36 L160 40 L180 14 L200 37 L220 39 L240 33 L260 36 L280 30 L300 32 L300 60 L0 60 Z"/><path class="ln" d="M0 46 L20 44 L40 47 L60 41 L80 43 L100 38 L120 42 L140 36 L160 40 L180 14 L200 37 L220 39 L240 33 L260 36 L280 30 L300 32"/><circle class="hot" cx="180" cy="14" r="4"/></svg></div>
+          </div>
+          <div class="feed" id="feed" aria-live="off"></div>
+          <div class="chain" id="chain" aria-hidden="true"><small>Evidence chain</small></div>
+        </div>
+      </div>
+      <div class="float f1"><span class="ico" style="width:36px;height:36px"><svg class="i"><use href="#i-pulse"/></svg></span><div><b>Anomaly explained</b><span>what, how detected, likely cause</span></div></div>
+      <div class="float f2"><span class="ico" style="width:36px;height:36px"><svg class="i"><use href="#i-clock"/></svg></span><div><b>Rule 7 clock started</b><span>Board report due in 72 h</span></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="strip" aria-hidden="true"><div class="strip-row">
+  <span>Personal data discovery</span><span>Consent &amp; purpose checks</span><span>Retention &amp; erasure</span><span>Breach response · Rule 7</span><span>Explainable anomaly detection</span><span>Data map &amp; record of processing</span><span>AI compliance assistant</span><span>Tamper-evident evidence</span><span>DPDP readiness score</span><span>Access control (IAM)</span>
+  <span>Personal data discovery</span><span>Consent &amp; purpose checks</span><span>Retention &amp; erasure</span><span>Breach response · Rule 7</span><span>Explainable anomaly detection</span><span>Data map &amp; record of processing</span><span>AI compliance assistant</span><span>Tamper-evident evidence</span><span>DPDP readiness score</span><span>Access control (IAM)</span>
+</div></div>
+
+<!-- ============ PROBLEM ============ -->
+<section class="section" id="problem">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">The problem</span>
+      <h2 class="h2">The DPDP Act makes you accountable. Most companies <span class="grad">can't see</span> what their systems do with personal data.</h2>
+      <p class="lead">Compliance today is checked with questionnaires, spreadsheets and yearly audits. They describe policy, not reality, and the gaps stay hidden until it's too late.</p>
+    </div>
+    <div class="prob-grid">
+      <div class="glass prob lift rv"><span class="ico"><svg class="i"><use href="#i-logs"/></svg></span><h3>Personal data leaks into logs</h3><p>Emails, phone numbers and card numbers end up in application logs that dozens of people and tools can read.</p></div>
+      <div class="glass prob lift rv d1"><span class="ico"><svg class="i"><use href="#i-consent"/></svg></span><h3>Processing without consent or purpose</h3><p>Services quietly read customer data for reasons nobody declared, and nobody notices until a complaint arrives.</p></div>
+      <div class="glass prob lift rv d2"><span class="ico"><svg class="i"><use href="#i-alert"/></svg></span><h3>Breaches found too late</h3><p>Without live monitoring, incidents are discovered days later, long after the legal reporting window has closed.</p></div>
+    </div>
+    <div class="stakes">
+      <div class="glass stake rv"><b class="grad">₹250 cr</b><p>maximum penalty for failing to keep reasonable security safeguards</p><span class="law">DPDP Act · Schedule</span></div>
+      <div class="glass stake rv d1"><b class="grad">₹200 cr</b><p>maximum penalty for not notifying a personal data breach</p><span class="law">DPDP Act · Schedule</span></div>
+      <div class="glass stake rv d2"><b class="grad">72 h</b><p>to send the detailed breach report to the Data Protection Board</p><span class="law">DPDP Rules · Rule 7(2)(b)</span></div>
+      <div class="glass stake rv d3"><b class="grad">6 h</b><p>to report a cyber security incident to CERT-In</p><span class="law">CERT-In Directions, 2022</span></div>
+    </div>
+    <div class="glass found rv"><span class="ico"><svg class="i"><use href="#i-search"/></svg></span><div><small>FOUND IN OUR PILOT</small><p>An e-commerce company's analytics service was reading its payments, orders and customer tables with no declared purpose. Nobody had noticed. NigraniAI flagged it on day one.</p></div></div>
+  </div>
+</section>
+
+<!-- ============ PLATFORM ============ -->
+<section class="section band" id="platform">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">The platform</span>
+      <h2 class="h2">Every tool a Data Fiduciary needs, <span class="grad">in one live system.</span></h2>
+      <p class="lead">Eleven tools that share one picture of your data. Every finding cites the section of the Act or the Rule it comes from, and says how to fix it.</p>
+    </div>
+    <div class="tabs rv" role="tablist" aria-label="Filter tools">
+      <button class="tab on" data-cat="all" role="tab" aria-selected="true">All tools</button>
+      <button class="tab" data-cat="see" role="tab" aria-selected="false">See your data</button>
+      <button class="tab" data-cat="comply" role="tab" aria-selected="false">Stay compliant</button>
+      <button class="tab" data-cat="detect" role="tab" aria-selected="false">Detect &amp; respond</button>
+      <button class="tab" data-cat="prove" role="tab" aria-selected="false">Prove &amp; govern</button>
+    </div>
+    <div class="tools" id="tools">
+      <article class="glass tool lift" data-cat="see"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-map"/></svg></span><span class="law">s.8(1)</span></div><h3>Data map</h3><p>A live map of where personal data lives, which services use it, for which purpose, and who receives it.</p><ul><li>Services → data → purposes → recipients</li><li>Use outside a declared purpose shown in red</li><li>Record of processing, ready to export</li></ul></article>
+      <article class="glass tool lift" data-cat="see"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-scan"/></svg></span><span class="law">s.8(5)</span></div><h3>PII detection</h3><p>Finds personal data in tables and log lines using five layers fused into one confident verdict.</p><ul><li>Validators for Aadhaar, PAN, cards, UPI, GSTIN</li><li>A local AI language model; nothing leaves your server</li><li>Learns from your confirmations</li></ul></article>
+      <article class="glass tool lift" data-cat="see"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-logs"/></svg></span><span class="law">Rule 6</span></div><h3>Log telemetry</h3><p>Every log line from every service, structured and searchable, with personal data masked inline.</p><ul><li>Flags unmasked personal data that slipped through</li><li>Separates masker false alarms from real leaks</li><li>Live view, filters and search</li></ul></article>
+      <article class="glass tool lift" data-cat="comply"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-consent"/></svg></span><span class="law">ss.5–7</span></div><h3>Consent &amp; purpose</h3><p>Checks every customer's consent and notice version against what your services actually do with their data.</p><ul><li>Sign-up consent gate verified continuously</li><li>Processing before consent, outdated notices</li><li>Customer-level findings with the fix</li></ul></article>
+      <article class="glass tool lift" data-cat="comply"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-clock"/></svg></span><span class="law">s.8(7) · Rule 8</span></div><h3>Retention &amp; erasure</h3><p>Tracks every record against its retention schedule, legal minimums and erasure requests.</p><ul><li>Deadlines and "due soon" worklists</li><li>Legal holds that override deletion rules</li><li>Erasure requests with their due dates</li></ul></article>
+      <article class="glass tool lift" data-cat="detect"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-alert"/></svg></span><span class="law">s.8(6) · Rule 7</span></div><h3>Breach response</h3><p>Rule-based detectors watch the logs; a signal becomes an incident with every legal deadline running.</p><ul><li>Board, Data Principal and CERT-In clocks</li><li>Notice drafts that people review and send</li><li>A complete breach register</li></ul></article>
+      <article class="glass tool lift" data-cat="detect"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-pulse"/></svg></span><span class="law">Rule 6(1)(c)</span></div><h3>Anomaly detection</h3><p>Machine learning that knows each service's normal, by day and by night, and explains every alert.</p><ul><li>What was unusual, and by how much</li><li>How it was detected, step by step</li><li>Likely cause and what to check; learns from reviews</li></ul></article>
+      <article class="glass tool lift" data-cat="detect"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-ai"/></svg></span><span class="law">Grounded</span></div><h3>AI assistant</h3><p>Ask anything about your compliance. Answers come from your live findings and cite the law.</p><ul><li>Explains findings in plain language</li><li>Step-by-step fixes and investigation plans</li><li>Sees only minimised summaries, never customer records</li></ul></article>
+      <article class="glass tool lift" data-cat="prove"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-gauge"/></svg></span><span class="law">Act + Rules</span></div><h3>Readiness score</h3><p>One 0–100 score across every area of the Act, with the fixes that raise it the most ranked first.</p><ul><li>Area-by-area cards with their law reference</li><li>"Fix these first", with points gained</li><li>Score history, printable for management</li></ul></article>
+      <article class="glass tool lift" data-cat="prove"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-chain"/></svg></span><span class="law">s.8(5) · Rule 6(1)(e)</span></div><h3>Evidence &amp; audit</h3><p>Every record and action is fingerprinted into a hash chain, so any secret change is caught.</p><ul><li>Daily seals and one-click verification</li><li>Evidence packs an auditor can check</li><li>Log retention checked against the 1-year rule</li></ul></article>
+      <article class="glass tool lift" data-cat="prove"><div class="tool-top"><span class="ico"><svg class="i"><use href="#i-key"/></svg></span><span class="law">s.8(5)</span></div><h3>Access control</h3><p>Cloud-grade, deny-by-default permissions for everyone who uses the dashboard.</p><ul><li>Allow and Deny policies, groups and conditions</li><li>A policy simulator before you save</li><li>Every action recorded in the activity log</li></ul></article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SPOTLIGHTS ============ -->
+<section class="section" id="spotlight">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">What makes it different</span>
+      <h2 class="h2">Not another alert machine. <span class="grad">Answers you can act on</span> and proof you can show.</h2>
+    </div>
+
+    <div class="spot">
+      <div class="spot-text rv">
+        <span class="eyebrow">Explainable anomaly detection</span>
+        <h3>Every alert tells you <span class="grad">what, how and why.</span></h3>
+        <p>The model learns each service's normal behaviour, separately for day and night. When something stands out, NigraniAI doesn't just raise a flag: it explains it in plain words, shows which measures caused it, the checks it passed, and the most likely cause.</p>
+        <ul class="checks">
+          <li><svg><use href="#i-check"/></svg><span><b>Plain-language summary</b> of what happened and when</span></li>
+          <li><svg><use href="#i-check"/></svg><span><b>Which measures</b> made the model isolate it</span></li>
+          <li><svg><use href="#i-check"/></svg><span><b>Learns from your reviews:</b> expected patterns stop alerting</span></li>
+        </ul>
+      </div>
+      <div class="glass vis rv d1">
+        <div class="vis-h"><span class="sev hi">High</span><b>Possible credential stuffing</b><span class="chip" style="margin-left:auto">auth-service</span></div>
+        <p class="quote">Between 2:10 and 2:20 AM, auth-service rejected 46 sign-ins in one 10-minute slice: usually 2 at night, 23× more.</p>
+        <div class="bars">
+          <div class="bar">Rejected sign-ins<i style="--w:64%"></i><b>61%</b></div>
+          <div class="bar">Requests<i style="--w:26%"></i><b>24%</b></div>
+          <div class="bar">Error rate<i style="--w:15%"></i><b>15%</b></div>
+        </div>
+        <ul class="trail"><li>Score above the cut-off</li><li>Clearly above normal</li><li>Compared with night-time normal</li><li>Enough history learned</li></ul>
+      </div>
+    </div>
+
+    <div class="spot flip">
+      <div class="spot-text rv">
+        <span class="eyebrow">Tamper-evident evidence</span>
+        <h3>Proof that your records <span class="grad">were never edited.</span></h3>
+        <p>Every policy change, decision and action is fingerprinted with SHA-256 and linked into a chain. Change one character in an old record and the chain breaks from that point. A daily seal fixes each day's history.</p>
+        <ul class="checks">
+          <li><svg><use href="#i-check"/></svg><span><b>One-click verification</b> of every record file and activity entry</span></li>
+          <li><svg><use href="#i-check"/></svg><span><b>Evidence packs</b> for an auditor or the Data Protection Board</span></li>
+          <li><svg><use href="#i-check"/></svg><span><b>Pack checking:</b> any edit to a pack is detected</span></li>
+        </ul>
+      </div>
+      <div class="glass vis rv d1">
+        <div class="vis-h"><span class="sev ok">Intact</span><b>Evidence chain</b></div>
+        <div class="ledger">
+          <div class="lrow"><span class="n">✎</span><div><b>Retention schedule saved</b><span>hash 9f2c…e41a</span></div><em>↳ linked</em></div>
+          <div class="lrow"><span class="n">•</span><div><b>Readiness score run</b><span>hash 4b7d…0c93</span></div><em>↳ linked</em></div>
+          <div class="lrow"><span class="n">⇩</span><div><b>Evidence pack issued</b><span>hash c18e…77f2</span></div><em>↳ linked</em></div>
+          <div class="lrow"><span class="n">◆</span><div><b>Daily seal</b><span>hash 2a90…d5be</span></div><em>↳ linked</em></div>
+        </div>
+        <div class="seal"><svg><use href="#i-shield"/></svg><span>Every record matches its fingerprint. Verified just now.</span></div>
+      </div>
+    </div>
+
+    <div class="spot">
+      <div class="spot-text rv">
+        <span class="eyebrow">Layered PII detection</span>
+        <h3>Personal data found with <span class="grad">confidence, not guesswork.</span></h3>
+        <p>Pattern matching alone flags product names as people and timestamps as card numbers. NigraniAI fuses five independent signals into one verdict, so findings are precise and false alarms are rare.</p>
+        <ul class="checks">
+          <li><svg><use href="#i-check"/></svg><span><b>Checksum validators</b> for Indian identifiers (Verhoeff for Aadhaar, Luhn for cards)</span></li>
+          <li><svg><use href="#i-check"/></svg><span><b>A local AI model</b> recognises names and places; nothing leaves the server</span></li>
+          <li><svg><use href="#i-check"/></svg><span><b>Your feedback wins:</b> confirm or reject a verdict once</span></li>
+        </ul>
+      </div>
+      <div class="glass vis rv d1">
+        <div class="vis-h"><span class="sev in">Confirmed</span><b>customers.contact_ref</b></div>
+        <div class="layers">
+          <div class="layer"><span class="n">01</span><div><b>Name &amp; context</b><span>column and table point to a person</span></div><em>+ signal</em></div>
+          <div class="layer"><span class="n">02</span><div><b>Validated values</b><span>sampled values pass the mobile-number check</span></div><em>+ strong</em></div>
+          <div class="layer"><span class="n">03</span><div><b>Links</b><span>joined to the customers table</span></div><em>+ signal</em></div>
+          <div class="layer"><span class="n">04</span><div><b>Local AI language model</b><span>text fields scanned for names and places</span></div><em>checked</em></div>
+          <div class="layer"><span class="n">05</span><div><b>Your feedback</b><span>reviewers confirm or reject once</span></div><em>applied</em></div>
+        </div>
+        <div class="verdict"><b>Hidden phone numbers</b><code>confirmed · contact</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section class="section band" id="how">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">How it works</span>
+      <h2 class="h2">From connection to <span class="grad">continuous proof.</span></h2>
+      <p class="lead">No agents to install in your code and no changes to your website. NigraniAI connects read-only and starts watching.</p>
+    </div>
+    <div class="steps">
+      <div class="step rv"><div class="num"><svg class="i"><use href="#i-db"/></svg></div><small>STEP 01</small><h3>Connect</h3><p>Read-only access to your service logs and customer database. Nothing is ever written.</p></div>
+      <div class="step rv d1"><div class="num"><svg class="i"><use href="#i-search"/></svg></div><small>STEP 02</small><h3>Discover</h3><p>Finds personal data and maps services, data, purposes and recipients.</p></div>
+      <div class="step rv d2"><div class="num"><svg class="i"><use href="#i-consent"/></svg></div><small>STEP 03</small><h3>Check</h3><p>Tests processing against consent, declared purposes and retention rules.</p></div>
+      <div class="step rv d3"><div class="num"><svg class="i"><use href="#i-pulse"/></svg></div><small>STEP 04</small><h3>Detect</h3><p>Detectors and the anomaly model watch live activity and explain every alert.</p></div>
+      <div class="step rv d4"><div class="num"><svg class="i"><use href="#i-shield"/></svg></div><small>STEP 05</small><h3>Respond &amp; prove</h3><p>Incidents with legal clocks, a readiness score and sealed evidence.</p></div>
+    </div>
+    <div class="design">
+      <div class="glass dz rv"><span class="ico"><svg class="i"><use href="#i-lock"/></svg></span><div><h4>Read-only on your data</h4><p>NigraniAI never writes to your databases and never copies customer records out.</p></div></div>
+      <div class="glass dz rv d1"><span class="ico"><svg class="i"><use href="#i-eye"/></svg></span><div><h4>Personal data minimised</h4><p>Values are masked before they reach the browser; the AI sees only aggregates.</p></div></div>
+      <div class="glass dz rv d2"><span class="ico"><svg class="i"><use href="#i-flag"/></svg></span><div><h4>Hosted in India</h4><p>Runs on servers in Mumbai, or on your own infrastructure if you prefer.</p></div></div>
+      <div class="glass dz rv"><span class="ico"><svg class="i"><use href="#i-users"/></svg></span><div><h4>People stay in charge</h4><p>Notices are drafts that your team reviews and sends; nothing goes out by itself.</p></div></div>
+      <div class="glass dz rv d1"><span class="ico"><svg class="i"><use href="#i-key"/></svg></span><div><h4>Deny-by-default access</h4><p>Every dashboard action is governed by policies and recorded.</p></div></div>
+      <div class="glass dz rv d2"><span class="ico"><svg class="i"><use href="#i-scale"/></svg></span><div><h4>Every finding cites the law</h4><p>Each result names its section of the Act or Rule, so decisions are defensible.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DPDP ============ -->
+<section class="section" id="dpdp">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">Understand the DPDP Act</span>
+      <h2 class="h2">India's privacy law, <span class="grad">explained simply.</span></h2>
+      <p class="lead">The Digital Personal Data Protection Act, 2023 and the DPDP Rules, 2025 set how businesses may collect, use, protect and erase the personal data of people in India.</p>
+    </div>
+    <div class="roles">
+      <div class="glass role lift rv"><span class="ico"><svg class="i"><use href="#i-users"/></svg></span><h3>Data Principal</h3><p>The person the data is about: your customer. They have rights to information, correction, erasure and grievance redress.</p></div>
+      <div class="glass role lift rv d1"><span class="ico"><svg class="i"><use href="#i-building"/></svg></span><h3>Data Fiduciary</h3><p>The business that decides why and how data is processed. It carries the duties, and the penalties.</p></div>
+      <div class="glass role lift rv d2"><span class="ico"><svg class="i"><use href="#i-server"/></svg></span><h3>Data Processor</h3><p>Anyone processing data on a Fiduciary's behalf, such as a cloud or payment provider. The Fiduciary stays responsible.</p></div>
+      <div class="glass role lift rv d3"><span class="ico"><svg class="i"><use href="#i-scale"/></svg></span><h3>Data Protection Board</h3><p>The authority that receives breach reports, conducts inquiries and imposes penalties.</p></div>
+    </div>
+
+    <div class="glass duty-wrap rv">
+      <div class="duty-head"><div><span class="eyebrow">Your duties, and how NigraniAI covers them</span><h3 style="margin-top:10px">From the Act to a live check</h3></div></div>
+      <table class="duty">
+        <thead><tr><th>Duty</th><th>What the law asks</th><th>How NigraniAI helps</th></tr></thead>
+        <tbody>
+          <tr><td>Notice &amp; consent<span class="law">ss.5–6 · Rule 3</span></td><td>Tell people what you collect and why, and get free, specific, informed consent.</td><td>Consent &amp; purpose: verifies every customer's consent and notice version.</td></tr>
+          <tr><td>Purpose limitation<span class="law">ss.4, 6</span></td><td>Use personal data only for the purpose it was given for.</td><td>Data map: flags services using data outside a declared purpose.</td></tr>
+          <tr><td>Security safeguards<span class="law">s.8(5) · Rule 6</span></td><td>Protect data with reasonable safeguards, monitoring and access control.</td><td>Log telemetry, detectors, anomaly detection and access control.</td></tr>
+          <tr><td>Breach intimation<span class="law">s.8(6) · Rule 7</span></td><td>Inform the Board and each affected person, then a detailed report within 72 hours.</td><td>Breach response: incidents with every clock running and notice drafts.</td></tr>
+          <tr><td>Erasure &amp; retention<span class="law">s.8(7) · Rule 8</span></td><td>Erase data once the purpose is served, unless the law requires keeping it.</td><td>Retention: deadlines, legal holds and erasure requests tracked.</td></tr>
+          <tr><td>Logs kept one year<span class="law">Rule 6(1)(e)</span></td><td>Keep logs needed to detect and investigate breaches for at least a year.</td><td>Evidence &amp; audit: checks no rule deletes logs too early.</td></tr>
+          <tr><td>Accountability<span class="law">s.8(1)</span></td><td>Be able to show that you comply, not just say it.</td><td>Readiness score, record of processing and sealed evidence packs.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="dp-grid">
+      <div class="glass clocks rv"><h3>When a breach happens: the clocks</h3>
+        <div class="clock"><b>6 h</b><p><strong>CERT-In</strong> must be told of a cyber security incident.</p></div>
+        <div class="clock"><b>ASAP</b><p><strong>The Board and every affected person</strong> must be informed without delay.</p></div>
+        <div class="clock"><b>72 h</b><p><strong>A detailed report</strong> goes to the Data Protection Board: facts, impact, measures and findings.</p></div>
+        <p class="law" style="margin-top:14px">DPDP Act s.8(6) · DPDP Rules Rule 7 · CERT-In Directions, 28 April 2022</p>
+      </div>
+      <div class="glass penal rv d1"><h3>Penalties under the Schedule</h3>
+        <div class="pen"><span>Failing to keep reasonable security safeguards</span><b>up to ₹250 cr</b></div>
+        <div class="pen"><span>Not notifying a personal data breach</span><b>up to ₹200 cr</b></div>
+        <div class="pen"><span>Breaking obligations for children's data</span><b>up to ₹200 cr</b></div>
+        <div class="pen"><span>Significant Data Fiduciary obligations</span><b>up to ₹150 cr</b></div>
+        <div class="pen"><span>Any other provision of the Act</span><b>up to ₹50 cr</b></div>
+      </div>
+    </div>
+
+    <div class="glass cd rv">
+      <div class="cd-row">
+        <div><span class="eyebrow">The countdown</span><h3 style="margin-top:10px">Full obligations apply from 13 May 2027</h3></div>
+        <div class="cd-nums" id="countdown" aria-label="Time until 13 May 2027">
+          <div class="cd-n"><b data-u="d">–</b><small>DAYS</small></div><div class="cd-n"><b data-u="h">–</b><small>HRS</small></div><div class="cd-n"><b data-u="m">–</b><small>MIN</small></div><div class="cd-n"><b data-u="s">–</b><small>SEC</small></div>
+        </div>
+      </div>
+      <div class="tl">
+        <div><small>11 Aug 2023</small><b>DPDP Act enacted</b><p>Passed by Parliament and signed into law.</p></div>
+        <div><small>13 Nov 2025</small><b>DPDP Rules notified</b><p>The transition period to build consent, rights and breach processes begins.</p></div>
+        <div class="next"><small>13 May 2027</small><b>Full enforcement</b><p>Duties and penalties apply; the Board can act on complaints and breaches.</p></div>
+      </div>
+    </div>
+
+    <div class="faq">
+      <details class="rv"><summary>Does the DPDP Act apply to my business?</summary><p>If you process digital personal data of people in India, it almost certainly does: e-commerce, fintech, SaaS, healthcare, education and more. It also applies to processing outside India when you offer goods or services to people in India.</p></details>
+      <details class="rv"><summary>What counts as personal data?</summary><p>Any data about an individual who can be identified by or in relation to it: names, phone numbers, emails, addresses, identifiers such as Aadhaar or PAN, and data linked to them such as orders or payments.</p></details>
+      <details class="rv"><summary>Do we need to change our website or apps to use NigraniAI?</summary><p>No. NigraniAI connects read-only to the logs and database you already have. It never writes to your systems and needs no code inside your apps.</p></details>
+      <details class="rv"><summary>Does customer data leave our systems?</summary><p>No customer records are copied out. Personal values are masked before they reach the dashboard, the PII language model runs on the NigraniAI server, and the AI assistant only sees minimised summaries.</p></details>
+      <details class="rv"><summary>Is NigraniAI legal advice?</summary><p>No. It is a monitoring and evidence system that maps your activity to the Act and the Rules and cites each section. Use it alongside your legal and compliance team.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section class="section band" id="pricing">
+  <div class="wrap">
+    <div class="head rv"><span class="eyebrow">Pricing</span>
+      <h2 class="h2">One setup. <span class="grad">Then your choice</span> of how it runs.</h2>
+      <p class="lead">Every company starts with a one-time setup tailored to its systems. After that, we run it for you, or you run it on your own servers.</p>
+    </div>
+    <div class="ways">
+      <div class="glass way lift rv"><span class="tag">Every client · once</span><h3>Setup &amp; development</h3><p>Your own copy of NigraniAI, configured for your business.</p>
+        <ul><li><svg><use href="#i-check"/></svg>Connect your logs and database, read-only</li><li><svg><use href="#i-check"/></svg>Map your data, services and purposes</li><li><svg><use href="#i-check"/></svg>Consent, retention and breach policies</li><li><svg><use href="#i-check"/></svg>Branding, deployment and team training</li></ul>
+        <a href="#contact" class="btn ghost">Talk to us</a></div>
+      <div class="glass way feat lift rv d1"><span class="tag">Most chosen</span><h3>Hosted by NigraniAI</h3><p>We run, monitor and update it for you. Monthly or yearly.</p>
+        <ul><li><svg><use href="#i-check"/></svg>Secure cloud hosting in India (Mumbai)</li><li><svg><use href="#i-check"/></svg>Live monitoring, ML and the AI assistant</li><li><svg><use href="#i-check"/></svg>Updates as the DPDP Rules change</li><li><svg><use href="#i-check"/></svg>Daily backups and support</li></ul>
+        <a href="#contact" class="btn primary">Get pricing</a></div>
+      <div class="glass way lift rv d2"><span class="tag">One-time</span><h3>Self-hosted</h3><p>The full system installed on your own cloud or servers.</p>
+        <ul><li><svg><use href="#i-check"/></svg>Installed on your infrastructure</li><li><svg><use href="#i-check"/></svg>Handover and IT team training</li><li><svg><use href="#i-check"/></svg>You keep full control of hosting</li><li><svg><use href="#i-check"/></svg>No monthly fee</li></ul>
+        <a href="#contact" class="btn ghost">Talk to us</a></div>
+    </div>
+    <div class="glass tiers rv">
+      <div class="tier"><h4>Basic</h4><div class="vol">up to 1.5 crore / month</div><p>About 5,000 visitors a day · 5 users · every compliance tool</p></div>
+      <div class="tier"><h4>Growth</h4><div class="vol">up to 15 crore / month</div><p>About 50,000 visitors a day · 15 users · scalable log engine</p></div>
+      <div class="tier"><h4>Scale</h4><div class="vol">up to 150 crore / month</div><p>About 5 lakh visitors a day · 30 users · dedicated log database</p></div>
+      <div class="tier"><h4>Enterprise</h4><div class="vol">Unlimited</div><p>Multi-node engine · custom integrations · agreed service levels</p></div>
+    </div>
+    <p class="price-note">Plans are sized by log volume, not by peaks: short bursts are included. Talk to us for a quote that fits your company.</p>
+  </div>
+</section>
+
+<!-- ============ CONTACT / BOOKING ============ -->
+<section class="section" id="contact">
+  <div class="wrap book">
+    <div class="book-aside rv">
+      <span class="eyebrow">Book a demo</span>
+      <h2 class="h2">See NigraniAI on <span class="grad">systems like yours.</span></h2>
+      <p class="lead">A personalised 30-minute walkthrough of the platform, focused on the tools that matter to you.</p>
+      <ul class="checks">
+        <li><svg><use href="#i-check"/></svg><span><b>Live product tour</b> of the tools you pick</span></li>
+        <li><svg><use href="#i-check"/></svg><span><b>Your DPDP questions</b> answered by our team</span></li>
+        <li><svg><use href="#i-check"/></svg><span><b>A setup plan</b> and quote for your company</span></li>
+      </ul>
+      <div class="glass book-card"><span class="ico"><svg class="i"><use href="#i-lock"/></svg></span><p>We use your details only to arrange the demo. That's DPDP-compliant by design: you can ask us to erase them any time.</p></div>
+    </div>
+    <form class="glass rv d1" id="bookForm" novalidate>
+      <div id="bookFields">
+        <div class="fgrid">
+          <label class="f">Full name<input name="full_name" autocomplete="name" required maxlength="100"><span class="err"></span></label>
+          <label class="f">Work email<input name="business_email" type="email" autocomplete="email" required maxlength="160"><span class="err"></span></label>
+          <label class="f">Phone<input name="phone_number" type="tel" autocomplete="tel" required maxlength="20" placeholder="+91"><span class="err"></span></label>
+          <label class="f">Designation<input name="designation" autocomplete="organization-title" required maxlength="100"><span class="err"></span></label>
+          <label class="f">Organisation<input name="organization_name" autocomplete="organization" required maxlength="160"><span class="err"></span></label>
+          <label class="f">Industry<select name="industry" required><option value="">Choose…</option><option>E-commerce &amp; retail</option><option>Fintech &amp; banking</option><option>SaaS &amp; technology</option><option>Healthcare</option><option>Education</option><option>Insurance</option><option>Telecom</option><option>Government &amp; public sector</option><option>Other</option></select><span class="err"></span></label>
+          <label class="f">Company size<select name="organization_size" required><option value="">Choose…</option><option>1–50</option><option>51–200</option><option>201–1,000</option><option>1,001–5,000</option><option>5,000+</option></select><span class="err"></span></label>
+          <label class="f">Preferred date<input name="preferred_date" type="date" required><span class="err"></span></label>
+          <label class="f">Preferred time (IST)<select name="preferred_time" required><option value="">Choose…</option><option>10:00 AM</option><option>11:30 AM</option><option>2:00 PM</option><option>3:30 PM</option><option>5:00 PM</option></select><span class="err"></span></label>
+          <div class="f full">Areas of interest
+            <div class="picks" id="picks">
+              <label class="pick"><input type="checkbox" value="Data map"><span>Data map</span></label>
+              <label class="pick"><input type="checkbox" value="PII detection"><span>PII detection</span></label>
+              <label class="pick"><input type="checkbox" value="Consent & purpose"><span>Consent &amp; purpose</span></label>
+              <label class="pick"><input type="checkbox" value="Retention"><span>Retention</span></label>
+              <label class="pick"><input type="checkbox" value="Breach response"><span>Breach response</span></label>
+              <label class="pick"><input type="checkbox" value="Anomaly detection"><span>Anomaly detection</span></label>
+              <label class="pick"><input type="checkbox" value="AI assistant"><span>AI assistant</span></label>
+              <label class="pick"><input type="checkbox" value="Readiness & evidence"><span>Readiness &amp; evidence</span></label>
+              <label class="pick"><input type="checkbox" value="Self-hosting"><span>Self-hosting</span></label>
+            </div>
+          </div>
+          <label class="f full">Anything else? <span class="muted" style="font-weight:400">(optional)</span><textarea name="additional_requirements" maxlength="1500"></textarea></label>
+        </div>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="form-foot"><small>By booking you agree that we may contact you about the demo. We never share your details.</small><button class="btn primary" type="submit" id="bookBtn">Book my demo <svg class="i"><use href="#i-arrow"/></svg></button></div>
+        <div class="form-msg" id="bookMsg" role="alert" hidden></div>
+      </div>
+      <div class="done" id="bookDone" hidden><div class="ico"><svg class="i" style="width:30px;height:30px"><use href="#i-check"/></svg></div><h3>You're booked in</h3><p>We'll confirm your slot by email shortly. Your reference:</p><p><code id="bookRef"></code></p></div>
+    </form>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="wrap">
+    <div class="glass cta rv">
+      <img class="cta-eye" src="assets/nigrani-eye-900.png" alt="" width="300" height="150">
+      <h2>Every Indian business should be able to <span class="grad">prove</span> it respects personal data. Any day, not once a year.</h2>
+      <p>Start with a demo. In thirty minutes you'll see your compliance the way NigraniAI sees it.</p>
+      <div class="cta-btns"><a href="#contact" class="btn primary">Book a demo <svg class="i"><use href="#i-arrow"/></svg></a><a href="company.html" class="btn ghost">About the company</a></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div><a href="index.html" class="brand"><img class="brand-eye" src="assets/nigrani-eye-300.png" alt="" width="92" height="46"><span class="brand-word">Nigrani<b>AI</b></span></a><p>Real-time DPDP compliance, proven from what your systems actually do. Built in India, for India's privacy law.</p></div>
+      <div><h4>Platform</h4><ul><li><a href="#platform">All tools</a></li><li><a href="#spotlight">Anomaly detection</a></li><li><a href="#spotlight">Evidence &amp; audit</a></li><li><a href="#how">How it works</a></li></ul></div>
+      <div><h4>DPDP Act</h4><ul><li><a href="#dpdp">The law, explained</a></li><li><a href="#dpdp">Your duties</a></li><li><a href="#dpdp">Breach clocks</a></li><li><a href="#dpdp">Penalties</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="company.html">About us</a></li><li><a href="#pricing">Pricing</a></li><li><a href="#contact">Book a demo</a></li><li><a href="company.html#contact">Contact</a></li></ul></div>
+    </div>
+    <div class="foot-bottom"><span>© <span class="yr"></span> NigraniAI. All rights reserved.</span><span>Information on this site is not legal advice.</span></div>
+  </div>
+</footer>
+
+<div class="cookie" id="cookie" hidden role="dialog" aria-label="Cookies">
+  <p><b>We respect your privacy.</b> This site uses only the storage it needs to work. With your consent we may also measure visits to improve it.</p>
+  <div><button class="btn ghost sm" data-cookie="essential">Essential only</button><button class="btn primary sm" data-cookie="all">Accept</button></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/main.js"></script>
+</body>
 </html>

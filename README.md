@@ -13,7 +13,7 @@ readiness score and tamper-evident evidence for auditors.
 | Folder | What it is |
 |---|---|
 | [`dashboard/`](dashboard/) | The compliance system each client gets: browser dashboard (plain HTML, CSS, JS), the Python service (standard library only) with detectors, the anomaly model, PII detection, billing and the evidence ledger. |
-| [`website/`](website/) | The public NigraniAI website. |
+| [`website/`](website/) | The public NigraniAI website: plain HTML, CSS and JavaScript, with demo bookings saved to Supabase. Open `website/index.html` or serve the folder. |
 
 Each folder has its own README with setup steps.
 
