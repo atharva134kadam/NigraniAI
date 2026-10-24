@@ -410,7 +410,11 @@ form.glass { padding: 30px; }
 .member .role { margin: 4px 0 12px; font-size: 13.5px; color: var(--cyan); padding: 0; }
 .member p { margin: 0; font-size: 13.5px; color: var(--text-2); }
 .ph { color: var(--warn); }
-.contact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; max-width: 880px; margin: 0 auto; }
+a.ct { color: inherit; text-decoration: none; transition: border-color .2s, transform .2s; }
+a.ct:hover { border-color: rgba(34, 211, 238, .45); transform: translateY(-2px); }
+.ct p { overflow-wrap: anywhere; }
+.ct .ct-link { color: var(--cyan); }
 .ct { display: flex; gap: 16px; padding: 24px; }
 .ct h4 { font-size: 16px; margin-bottom: 4px; }
 .ct p { margin: 0; font-size: 14.5px; color: var(--text-2); }
